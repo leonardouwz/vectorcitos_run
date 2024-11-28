@@ -1,0 +1,47 @@
+body {
+    font-family: "Syne Mono", monospace;
+    font-size: 40px;
+    font-weight: 400;
+    font-style: normal;
+    margin: 0;
+    padding: 0;
+    background-color: #050429; /* Color de fondo suave */
+}
+
+h1 {
+    color: #17ff93; /* Color de texto oscuro */
+    text-align: center; /* Centrar texto */
+    margin-top: 200px; /* Espacio superior */
+}
+
+
+/* Contenedor de botones */
+.button-container {
+    display: flex;
+    justify-content: center; /* Centrar botones */
+    margin-top: 40px; /* Espacio superior */
+}
+
+.button-container a {
+    margin: 0 100px; /* Espaciado entre botones */
+}
+
+/* Estilo de botones */
+button {
+    font-family: "Syne Mono", monospace;
+    font-weight: 400;
+    font-style: normal;
+    background-color: #17ff93; /* Color de fondo verde */
+    color: #050429; /* Color de texto blanco */
+    border: none; /* Sin borde */
+    border-radius: 5px; /* Bordes redondeados */
+    padding: 10px 20px; /* Espaciado interno */
+    cursor: pointer; /* Cambiar el cursor al pasar */
+    transition: background-color 0.3s; /* Transición para el efecto hover */
+    font-size: 40px;
+}
+
+button:hover {
+    background-color: #eaeaea; /* Color más oscuro al pasar el mouse */
+    color:  #050429; /* Color de texto blanco */
+}
