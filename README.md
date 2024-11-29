@@ -2,4 +2,11 @@
 
 ## Juego de mecanografia
 
-### Hecho por el grupo Vectorcitos
+### Integrantes grupo Vectorcitos:
+- Leonardo Pachari Gomez
+- Piero Poblete Andia
+- Katherine Saico Ccahuana
+- Nicolle Lozano Vega
+- Allison Usedo Quispe
+
+
