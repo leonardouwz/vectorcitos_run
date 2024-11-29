@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados del Juego</title>
+    <link rel="stylesheet" href="../styles/styles.css">
+    <script src="../backend/code.js"></script>
+</head>
+<body>
+    <div id="result-screen">
+        <!-- Encabezado -->
+        <header class="main-page-header">
+            <h3>NIVEL 2 - DIFICULTAD: FÁCIL</h3>
+        </header>
+
+        <!-- Contenedor principal -->
+        <main class="result-main">
+            <!-- Título de resultados -->
+            <h2 class="result-title">RESULTADOS</h2>
+
+            <!-- Estadísticas del nivel -->
+            <div class="result-stats">
+                <p>Total de Palabras: <span id="total-palabras">25</span></p>
+                <p>Palabras Correctas: <span id="palabras-correctas">21</span></p>
+                <p>Palabras Incorrectas: <span id="palabras-incorrectas">4</span></p>
+                <p>Tiempo Total: <span id="tiempo-total">1:54</span></p>
+                <p>Puntaje Total:</p>
+            </div>
+
+            <!-- Estrellas -->
+            <div class="star-rating">
+                <i class="fas fa-star filled"></i>
+                <i class="fas fa-star filled"></i>
+                <i class="fas fa-star filled"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+            </div>
+
+            <!-- Botones -->
+            <div class="buttons">
+                <a href="pagina_principal.html" class="button menu-button">Menú</a>
+                <a href="siguiente_nivel.html" class="button retry-button">Volver a Jugar</a>
+                <a href="pagina_principal.html" class="button next-button">Siguiente Nivel</a>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
