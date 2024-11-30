@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>Iniciar Sesión</title>
-    <link rel="stylesheet" href="../styles/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <h2>Iniciar Sesión</h2>
-    <form>
     <form id="login-form">    
         <input type="text" id="login-username" placeholder="Nombre de usuario">
         <input type="password" id="login-password" placeholder="Contraseña">
         
         <div class="button-container">
-            <a href="pagina_principal.html"><button type="button">Iniciar</button></a>
-            <a href="../index.html"><button type="button">Volver</button></a>
+            <button id="login-button">Iniciar</button>
+            <a href="index.html"><button type="button">Volver</button></a>
         </div>
         
         <p class="error-message"></p>
     </form>
-    <script src="../backend/code.js"></script>
+    <script src="login.js"></script>
 </body>
 </html>
