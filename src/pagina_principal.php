@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Página Principal</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../styles/styles.css">
     <style>
         .exit-button {
             position: absolute;
@@ -24,7 +24,7 @@
     <!-- Header Principal -->
     <header class="main-page-header">
         <h3>PÁGINA PRINCIPAL</h3>
-        <a href="index.html" class="exit-button">Salir</a>
+        <a href="../index.html" class="exit-button">Salir</a>
     </header>
 
     <!-- Contenedor Principal -->

@@ -44,7 +44,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Mecanografía</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../styles/styles.css">
     <script>
         let tiempoInicio;
         let palabras = <?php echo json_encode(explode(" ", $descripcion)); ?>;

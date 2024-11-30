@@ -32,5 +32,5 @@ function registerUser() {
 
     // Mostrar mensaje de éxito y redirigir a la página de inicio de sesión
     alert("¡Registro exitoso! Ahora puedes iniciar sesión.");
-    window.location.href = "index.html";
+    window.location.href = "../index.html";
 }

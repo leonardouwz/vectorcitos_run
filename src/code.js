@@ -57,7 +57,7 @@ function pregunta(pregunta) {
 async function serverRequest(endpoint, data) {
     try {
         // Cambiar la URL al archivo PHP correcto
-        const response = await axios.post('http://127.0.0.1/vectorcitos/db_connect.php', {
+        const response = await axios.post('http://127.0.0.1/vectorcitos/src/db_connect.php', {
             ...data,  // Spread de los datos
             action: endpoint
         }, {
