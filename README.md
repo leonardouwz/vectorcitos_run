@@ -493,6 +493,9 @@ Con todas estas funciones y estructuras, hemos creado un juego interactivo donde
 | Leonardo Raphael Pachari Gomez         | 100%     |
 | Nicolle Andrea Lozano Vega         | 100%     |
 
+# Nota: Este repositorio fue el que se presentó en la feria de proyectos, por ello el contenido de los commits es de solo un integrante. Para revisar el historial de commits REAL, visitar este repositorio: 
+![Repositorio de lp3_vectorcitos](https://github.com/leonardouwz/lp3_vectorcitos.git)
+
 ![Presentación del proyecto](assets/vectorcitos_run_ppt.pdf)
 
 ![Poster del proyecto](assets/vectorcitos_run_poster.png)
