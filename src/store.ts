@@ -42,10 +42,14 @@ export const store = {
     save();
   },
   best(id: number): Best | undefined { return data.profiles[data.current]?.[id]; },
-  /** Un nivel se abre cuando el anterior de la lista tiene al menos una estrella. */
+  /** Un nivel de la progresión se abre cuando el anterior tiene al menos una estrella. La práctica siempre está abierta. */
   unlocked(id: number) {
-    const i = LEVELS.findIndex((l) => l.id === id);
-    return i === 0 || (i > 0 && !!this.best(LEVELS[i - 1].id));
+    const lv = LEVELS.find((l) => l.id === id);
+    if (!lv) return false;
+    if (lv.free) return true;
+    const seq = LEVELS.filter((l) => !l.free);
+    const i = seq.findIndex((l) => l.id === id);
+    return i === 0 || (i > 0 && !!this.best(seq[i - 1].id));
   },
   record(id: number, r: Best) {
     const p = data.profiles[data.current];

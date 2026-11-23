@@ -67,6 +67,7 @@ const MOODS = {
   easy:   { root: 110, ms: 240, beat: true },
   medium: { root: 123, ms: 210, beat: true },
   hard:   { root: 131, ms: 180, beat: true },
+  practice: { root: 104, ms: 270, beat: false },
 };
 export type Mood = keyof typeof MOODS;
 const SCALE = [0, 3, 5, 7, 10, 12, 15];

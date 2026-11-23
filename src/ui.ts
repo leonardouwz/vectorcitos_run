@@ -13,6 +13,7 @@ let tab: Diff = "easy";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const tr = (k: Key) => t(store.lang, k);
+const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
 
 function show(html: string, onMount?: (root: HTMLElement) => void) {
@@ -98,8 +99,8 @@ function levelMap() {
       <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
       <div class="grid">${LEVELS.filter((l) => l.diff === tab).map((l) => {
         const open = store.unlocked(l.id), b = store.best(l.id);
-        return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${tr("level")} ${l.n}, ${open ? tr("open") : tr("locked")}">
-          <i>${open ? "🎮" : "🚫"}</i><b>${tr("level")} ${l.n}</b><span class="st">${b ? stars(b.stars) : ""}</span></button>`;
+        return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
+          <i>${open ? "🎮" : "🚫"}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : ""}</span></button>`;
       }).join("")}</div>
       <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
@@ -137,7 +138,7 @@ function progress() {
   const fmt = new Intl.DateTimeFormat(store.lang, { day: "numeric", month: "short" });
   const rows = runs.slice(-8).reverse().map((r) => {
     const lv = LEVELS.find((x) => x.id === r.id)!;
-    return `<li><span>${fmt.format(r.ts)}</span><span>${tr("level")} ${lv.n} · ${tr(lv.diff)}</span><b>${r.wpm}</b><span>${r.acc}%</span><span class="st">${stars(r.stars)}</span></li>`;
+    return `<li><span>${fmt.format(r.ts)}</span><span>${lvlName(lv)} · ${tr(lv.diff)}</span><b>${r.wpm}</b><span>${r.acc}%</span><span class="st">${stars(r.stars)}</span></li>`;
   }).join("");
   show(`${toolbar()}
     <main class="wide">
@@ -167,7 +168,7 @@ function info(l: Level) {
   const b = store.best(l.id);
   show(`${toolbar()}
     <main class="center">
-      <h2>${tr("level")} ${l.n} · ${tr(l.diff)}</h2>
+      <h2>${lvlName(l)} · ${tr(l.diff)}</h2>
       <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
       <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
       <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
@@ -187,7 +188,7 @@ function play(l: Level) {
   const html = round.text.split(" ").map((w) =>
     `<span class="wd">${[...w].map((c) => `<span class="ch">${esc(c)}</span>`).join("")}</span>`).join('<span class="ch sp"> </span>');
   show(`<main class="play">
-      <header class="bar"><h3>${tr("level")} ${l.n} · ${tr(l.diff)}</h3><span class="streak" id="streak" hidden></span><span class="clock" id="clock">0s</span></header>
+      <header class="bar"><h3>${lvlName(l)} · ${tr(l.diff)}</h3><span class="streak" id="streak" hidden></span><span class="clock" id="clock">0s</span></header>
       <div class="phrase idle" id="phrase" aria-label="${esc(round.text)}">${html}<span class="tap" id="tap">${tr("tapHint")}</span></div>
       <div class="meter" aria-hidden="true"><i id="meter"></i></div>
       <p class="hint" id="count">${tr("typeHint")}</p>
@@ -259,7 +260,8 @@ function countUp(el: HTMLElement, to: number, suffix = "", ms = 900) {
 }
 
 function results(l: Level, round: Round) {
-  const nextLevel = LEVELS[LEVELS.findIndex((x) => x.id === l.id) + 1];
+  const next = LEVELS[LEVELS.findIndex((x) => x.id === l.id) + 1];
+  const nextLevel = next && next.free === l.free ? next : undefined;
   const wasOpen = nextLevel ? store.unlocked(nextLevel.id) : true;
   const acc = Math.round(round.accuracy * 100);
   const prev = store.best(l.id);
@@ -286,11 +288,11 @@ function results(l: Level, round: Round) {
       </dl>
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       <div class="practice pop" style="animation-delay:1.7s">${round.missedWords.length
-        ? `<span class="hint">${tr("practice")}</span><div class="chips">${round.missedWords.map((w) => `<span class="chip">${esc(w)}</span>`).join("")}</div>`
+        ? `<span class="hint">${tr("toPractice")}</span><div class="chips">${round.missedWords.map((w) => `<span class="chip">${esc(w)}</span>`).join("")}</div>`
         : `<span class="good">${tr("cleanRun")}</span>`}</div>
       ${isBest ? `<p class="good pop" style="animation-delay:1.8s">${tr("newBest")}</p>` : ""}
       ${opened ? `<p class="good pop" style="animation-delay:1.9s">${tr("unlocked")}</p>` : ""}
-      ${!nextLevel ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
+      ${!nextLevel && !l.free ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <div class="row">
         <button class="btn ghost-b" id="map">${tr("map")}</button>
         <button class="btn ghost-b" id="retry">${tr("retry")}</button>

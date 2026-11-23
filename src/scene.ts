@@ -8,6 +8,7 @@ const THEMES: Record<Diff | "menu", { sky: number; accent: number; tower: number
   easy:   { sky: 0x070a3a, accent: 0x17ff93, tower: 0x1a1a40, sun: 0xffea85 },
   medium: { sky: 0x050429, accent: 0x6ab7ff, tower: 0x14204d, sun: 0xeaeaea },
   hard:   { sky: 0x0a0426, accent: 0xff7070, tower: 0x2a1040, sun: 0xff7070 },
+  practice: { sky: 0x050429, accent: 0xa3ffa3, tower: 0x10264a, sun: 0x6ab7ff },
 };
 const CELL = 2;
 

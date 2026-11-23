@@ -34,7 +34,7 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 
 ## Ampliar el juego
 
-- **Más niveles o frases:** añade entradas en `src/content.ts` (siempre `es` y `en`).
+- **Más niveles o frases:** añade entradas **al final** de cada lista en `src/content.ts` (siempre `es` y `en`). El orden fija el número de nivel y el avance guardado de los jugadores. Hay 10 frases por dificultad y una pestaña de **Práctica** (fila central, superior, inferior, números, símbolos, acentos) que siempre está abierta.
 - **Otro idioma:** añade el código a `Lang` en `content.ts` y un bloque en `i18n.ts`.
 - **Modelo 3D propio del personaje:** guarda un archivo glTF/GLB como `public/models/vectorcito.glb`. Si existe, reemplaza al personaje básico. Para decorados, carga más modelos desde `src/scene.ts` con `GLTFLoader`.
 - **Música y sonidos propios:** pon tus archivos en `public/audio/` y reprodúcelos desde `src/audio.ts` (`new Audio("/audio/tema.mp3")`) en lugar de las notas generadas.
