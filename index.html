@@ -1,19 +1,14 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Página de Inicio</title>
-    <link rel="stylesheet" href="styles/inicio.css">
-
-        
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#050429" />
+  <title>Vectorcitos Run</title>
 </head>
-<body> 
-    <h1>VECTORCITOS RUN</h1>
-    <h1>¿Qué deseas hacer?</h1>
-    <div class="button-container">
-        <a href="src/registro.html"><button>Registrarse</button></a>
-        <a href="src/login.html"><button>Iniciar Sesión</button></a>
-    </div>
-    </main>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
