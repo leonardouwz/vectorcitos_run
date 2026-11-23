@@ -56,16 +56,32 @@ h3 { color: var(--neon); font-size: clamp(1rem, 3vw, 1.4rem); letter-spacing: .0
 .lvl.closed { background: var(--hielo); color: var(--noche); opacity: .5; cursor: not-allowed; }
 .st { color: #b07d00; letter-spacing: .1em; min-height: 1.2em; } .off { opacity: .25; }
 .quote { font: 400 clamp(1.1rem, 3.5vw, 1.8rem)/1.5 var(--mono); max-width: 30ch; margin: 0; padding: 1rem 1.2rem; background: rgb(10 10 53 / .85); border-left: 3px solid var(--neon); border-radius: 0 6px 6px 0; text-align: left; }
-.phrase { font: 400 clamp(1.3rem, 4.5vw, 2.4rem)/1.5 var(--mono); background: rgb(10 10 53 / .85); border: 1px solid var(--linea); border-radius: 8px; padding: 1rem 1.2rem; overflow-wrap: anywhere; }
-.w-done { color: var(--hecha); } .w-todo { color: var(--falta); }
-.w-now { color: var(--ahora); text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.phrase { position: relative; font: 400 clamp(1.3rem, 4.5vw, 2.4rem)/1.7 var(--mono); white-space: pre-wrap; background: rgb(10 10 53 / .85); border: 1px solid var(--linea); border-radius: 8px; padding: 1.2rem 1.4rem; overflow-wrap: anywhere; cursor: text; }
+.wd { white-space: nowrap; }
+.ch { color: var(--falta); transition: color .08s; }
+.ch.done { color: var(--hecha); }
+.ch.now { color: var(--noche); background: var(--ahora); border-radius: 3px; box-shadow: 0 0 14px rgb(255 234 133 / .6); }
+.phrase.err { animation: shake .25s; border-color: var(--falta); }
+.phrase.err .ch.now { background: var(--falta); box-shadow: 0 0 14px rgb(255 112 112 / .7); }
+.tap { position: absolute; inset: 0; display: none; place-items: center; background: rgb(5 4 41 / .8); color: var(--neon); border-radius: 8px; font-size: 1.1rem; }
+.phrase.idle .tap { display: grid; }
+.meter { height: 6px; background: var(--cabecera); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width .12s; }
+.streak { color: var(--ahora); font-family: var(--mono); }
+.ghost-input { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; pointer-events: none; }
 .clock { background: var(--neon); color: var(--noche); font-family: var(--mono); padding: .25rem .8rem; border-radius: 4px; font-variant-numeric: tabular-nums; }
 .big-field { font-size: clamp(1.2rem, 4vw, 1.8rem); }
-.big-stars { font-size: clamp(2.5rem, 10vw, 4rem); color: var(--estrella); letter-spacing: .12em; text-shadow: 0 0 20px rgb(255 193 7 / .5); }
-.big-stars .off { color: var(--linea); text-shadow: none; opacity: 1; }
+.big-stars { font-size: clamp(2.5rem, 10vw, 4rem); letter-spacing: .12em; display: flex; gap: .15em; justify-content: center; }
+.star { opacity: 0; transform: scale(.2); animation: pop .5s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+.star.on { color: var(--estrella); text-shadow: 0 0 20px rgb(255 193 7 / .6); }
+.star.off { color: var(--linea); }
+.pop { opacity: 0; animation: pop .4s ease-out forwards; }
+@keyframes pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
+.screen { animation: enter .35s ease-out; }
+@keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .8rem; margin: 0; width: min(560px, 100%); }
 .stats div { background: rgb(10 10 53 / .85); border: 1px solid var(--linea); border-radius: 8px; padding: .7rem; }
 .stats dt { color: var(--suave); font-size: .8rem; } .stats dd { margin: 0; font: 400 1.8rem var(--mono); color: var(--neon); }
 .good { color: var(--ahora); font-family: var(--mono); margin: 0; }
-@media (prefers-reduced-motion: reduce) { .cursor, .field.bad { animation: none; } * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .cursor, .field.bad, .phrase.err, .screen { animation: none; } .star, .pop { animation: none; opacity: 1; transform: none; } * { transition: none !important; } }
 main.wide > .ghost { align-self: flex-start; }

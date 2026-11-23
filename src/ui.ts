@@ -41,6 +41,7 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
   root.querySelector('[data-act="sound"]')?.addEventListener("click", () => {
     store.muted = !store.muted;
     setMuted(store.muted);
+    if (!store.muted) { unlockAudio(); music.start(); }
     rerender();
   });
 }
@@ -55,7 +56,7 @@ export function home() {
       <button class="btn big" id="play" data-focus>${tr("play")}</button>
     </main>`, (r) => {
     wireToolbar(r, home);
-    on(r, "#play", () => { unlockAudio(); if (!store.muted) music.start(); profile(); });
+    on(r, "#play", () => { unlockAudio(); music.start(); profile(); });
   });
 }
 
@@ -126,68 +127,107 @@ function info(l: Level) {
 function play(l: Level) {
   world.theme(l.diff);
   world.mode("play");
-  const text = l.text[store.lang];
-  const round = new Round(text.split(" "));
+  music.mood(l.diff);
+  const round = new Round(l.text[store.lang]);
+  // La frase se divide en palabras (que no se parten al saltar de línea) y espacios.
+  const html = round.text.split(" ").map((w) =>
+    `<span class="wd">${[...w].map((c) => `<span class="ch">${esc(c)}</span>`).join("")}</span>`).join('<span class="ch sp"> </span>');
   show(`<main class="play">
-      <header class="bar"><h3>${tr("level")} ${l.n} · ${tr(l.diff)}</h3><span class="clock" id="clock">0s</span></header>
-      <div class="phrase" id="phrase" aria-live="off"></div>
-      <input id="in" class="field big-field" data-focus autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${tr("typeHere")}" aria-label="${tr("typeHere")}" />
-      <p class="hint" id="count"></p>
+      <header class="bar"><h3>${tr("level")} ${l.n} · ${tr(l.diff)}</h3><span class="streak" id="streak" hidden></span><span class="clock" id="clock">0s</span></header>
+      <div class="phrase idle" id="phrase" aria-label="${esc(round.text)}">${html}<span class="tap" id="tap">${tr("tapHint")}</span></div>
+      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+      <p class="hint" id="count">${tr("typeHint")}</p>
+      <input id="in" class="ghost-input" aria-label="${tr("typeHint")}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
     </main>`, (r) => {
     const phrase = r.querySelector<HTMLElement>("#phrase")!;
     const input = r.querySelector<HTMLInputElement>("#in")!;
     const clock = r.querySelector<HTMLElement>("#clock")!;
     const count = r.querySelector<HTMLElement>("#count")!;
-    const draw = () => {
-      phrase.innerHTML = round.words.map((w, i) =>
-        `<span class="${i < round.idx ? "w-done" : i === round.idx ? "w-now" : "w-todo"}">${esc(w)}</span>`).join(" ");
-      count.textContent = `${tr("written")}: ${round.idx}/${round.words.length}`;
-      world.progress(round.idx / round.words.length);
-    };
-    draw();
+    const meter = r.querySelector<HTMLElement>("#meter")!;
+    const streakEl = r.querySelector<HTMLElement>("#streak")!;
+    const chars = [...r.querySelectorAll<HTMLElement>(".ch")];
+    chars[0].classList.add("now");
+    let leaving = false;
+
     const timer = window.setInterval(() => {
       if (round.start && !round.done) clock.textContent = `${Math.floor((performance.now() - round.start) / 1000)}s`;
     }, 250);
-    const esc_ = (e: KeyboardEvent) => { if (e.key === "Escape") levelMap(); };
-    addEventListener("keydown", esc_);
-    cleanup = () => { clearInterval(timer); removeEventListener("keydown", esc_); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { leaving = true; levelMap(); } };
+    const focus = () => input.focus({ preventScroll: true });
+    addEventListener("keydown", onKey);
+    r.addEventListener("pointerdown", focus);
+    cleanup = () => { leaving = true; clearInterval(timer); removeEventListener("keydown", onKey); };
 
-    input.addEventListener("input", () => {
-      const hit = round.type(input.value.trimEnd(), performance.now());
-      if (hit === "ok") sfx.key();
-      else if (hit === "error") { sfx.error(); world.error(); input.classList.add("bad"); }
-      if (hit !== "error" && hit !== "none") input.classList.remove("bad");
-      if (hit === "word" || hit === "done") { sfx.word(); world.word(); input.value = ""; draw(); }
-      if (hit === "done") {
-        input.disabled = true;
-        world.win();
-        setTimeout(() => results(l, round), 900);
+    input.addEventListener("focus", () => phrase.classList.remove("idle"));
+    input.addEventListener("blur", () => { phrase.classList.add("idle"); if (!leaving && !round.done) setTimeout(focus, 50); });
+    focus();
+
+    const press = (c: string) => {
+      const before = round.pos;
+      const hit = round.key(c, performance.now());
+      if (hit === "none") return;
+      if (hit === "error") {
+        sfx.error(); world.error();
+        phrase.classList.remove("err"); void phrase.offsetWidth; phrase.classList.add("err");
+      } else {
+        chars[before].classList.remove("now");
+        chars[before].classList.add("done");
+        chars[round.pos]?.classList.add("now");
+        sfx.key(round.streak); world.key();
+        if (hit === "word" || hit === "done") { sfx.word(); world.word(); }
       }
-    });
+      meter.style.width = `${(round.pos / round.chars.length) * 100}%`;
+      world.progress(round.pos / round.chars.length);
+      count.textContent = `${tr("written")}: ${round.pos}/${round.chars.length}`;
+      streakEl.hidden = round.streak < 10;
+      streakEl.textContent = `🔥 ${tr("streak")} ${round.streak}`;
+      if (hit === "done") {
+        leaving = true;
+        input.blur();
+        world.win();
+        setTimeout(() => results(l, round), 1000);
+      }
+    };
+    const feed = () => { const v = input.value; input.value = ""; for (const c of v) press(c); };
+    input.addEventListener("input", (e) => { if (!(e as InputEvent).isComposing) feed(); });
+    input.addEventListener("compositionend", feed);
   });
+}
+
+function countUp(el: HTMLElement, to: number, suffix = "", ms = 900) {
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const k = Math.min(1, (now - t0) / ms);
+    el.textContent = `${Math.round(to * (1 - (1 - k) ** 3))}${suffix}`;
+    if (k < 1 && el.isConnected) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function results(l: Level, round: Round) {
   const nextLevel = LEVELS[LEVELS.findIndex((x) => x.id === l.id) + 1];
   const wasOpen = nextLevel ? store.unlocked(nextLevel.id) : true;
-  const isBest = store.record(l.id, { stars: round.stars, wpm: round.wpm, acc: Math.round(round.accuracy * 100) });
+  const acc = Math.round(round.accuracy * 100);
+  const isBest = store.record(l.id, { stars: round.stars, wpm: round.wpm, acc });
   const opened = nextLevel && !wasOpen && store.unlocked(nextLevel.id);
-  sfx.win(round.stars);
+  music.mood("menu");
   const msg = round.stars === 3 ? "msg3" : round.stars === 2 ? "msg2" : "msg1";
+  const starHtml = [0, 1, 2].map((i) =>
+    `<span class="star ${i < round.stars ? "on" : "off"}" style="animation-delay:${0.35 + i * 0.35}s">★</span>`).join("");
   show(`${toolbar()}
     <main class="center">
       <h2>${tr("results")}</h2>
-      <div class="big-stars" aria-label="${round.stars}/3">${stars(round.stars)}</div>
-      <p class="tag">${tr(msg)}</p>
+      <div class="big-stars" aria-label="${round.stars}/3">${starHtml}</div>
+      <p class="tag pop" style="animation-delay:1.5s">${tr(msg)}</p>
       <dl class="stats">
-        <div><dt>${tr("wpm")}</dt><dd>${round.wpm}</dd></div>
-        <div><dt>${tr("acc")}</dt><dd>${Math.round(round.accuracy * 100)}%</dd></div>
-        <div><dt>${tr("errors")}</dt><dd>${round.errors}</dd></div>
-        <div><dt>${tr("time")}</dt><dd>${Math.round(round.seconds)}s</dd></div>
+        <div><dt>${tr("wpm")}</dt><dd data-n="${round.wpm}">0</dd></div>
+        <div><dt>${tr("acc")}</dt><dd data-n="${acc}" data-s="%">0</dd></div>
+        <div><dt>${tr("errors")}</dt><dd data-n="${round.errors}">0</dd></div>
+        <div><dt>${tr("time")}</dt><dd data-n="${Math.round(round.seconds)}" data-s="s">0</dd></div>
       </dl>
-      ${isBest ? `<p class="good">${tr("newBest")}</p>` : ""}
-      ${opened ? `<p class="good">${tr("unlocked")}</p>` : ""}
-      ${!nextLevel ? `<p class="good">${tr("allDone")}</p>` : ""}
+      ${isBest ? `<p class="good pop" style="animation-delay:1.7s">${tr("newBest")}</p>` : ""}
+      ${opened ? `<p class="good pop" style="animation-delay:1.9s">${tr("unlocked")}</p>` : ""}
+      ${!nextLevel ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <div class="row">
         <button class="btn ghost-b" id="map">${tr("map")}</button>
         <button class="btn ghost-b" id="retry">${tr("retry")}</button>
@@ -195,6 +235,12 @@ function results(l: Level, round: Round) {
       </div>
     </main>`, (r) => {
     wireToolbar(r, () => results(l, round));
+    r.querySelectorAll<HTMLElement>("dd").forEach((d) => countUp(d, +d.dataset.n!, d.dataset.s ?? ""));
+    // un "ding" por cada estrella ganada, y fanfarria si son las tres
+    const timers: number[] = [];
+    for (let i = 0; i < round.stars; i++) timers.push(window.setTimeout(() => sfx.star(i), 350 + i * 350 + 200));
+    if (round.stars === 3) timers.push(window.setTimeout(sfx.fanfare, 1600));
+    cleanup = () => timers.forEach(clearTimeout);
     on(r, "#map", () => { tab = l.diff; levelMap(); });
     on(r, "#retry", () => play(l));
     on(r, "#next", () => { tab = nextLevel!.diff; info(nextLevel!); });

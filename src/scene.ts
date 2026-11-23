@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { Diff } from "./content";
 
 const THEMES: Record<Diff | "menu", { sky: number; accent: number; tower: number; sun: number }> = {
@@ -64,22 +65,35 @@ export function createScene(canvas: HTMLCanvasElement) {
   // Vectorcito: personaje hecho con formas simples. Si existe public/models/vectorcito.glb lo reemplaza.
   const hero = new THREE.Group();
   const glow = new THREE.MeshStandardMaterial({ color: 0x17ff93, emissive: 0x17ff93, emissiveIntensity: 0.35, roughness: 0.4 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x050429, roughness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x050429, roughness: 0.4 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffea85, emissive: 0xffea85, emissiveIntensity: 0.8 });
   const procedural = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), glow);
-  body.position.y = 1.1;
-  const face = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.05), dark);
-  face.position.set(0, 1.2, -0.52);
-  const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.02), glow);
-  eyeL.position.set(-0.2, 1.22, -0.55);
+  const part = (g: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => {
+    const o = new THREE.Mesh(g, m);
+    o.position.set(x, y, z);
+    return o;
+  };
+  const body = part(new RoundedBoxGeometry(1.15, 1.05, 0.95, 4, 0.2), glow, 0, 1.3, 0);
+  const screen = part(new RoundedBoxGeometry(0.88, 0.6, 0.06, 3, 0.05), dark, 0, 1.33, -0.47);
+  const eyeL = part(new THREE.BoxGeometry(0.15, 0.22, 0.03), glow, -0.2, 1.4, -0.51);
   const eyeR = eyeL.clone();
   eyeR.position.x = 0.2;
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.6, 0.28), glow);
-  legL.geometry.translate(0, -0.3, 0);
-  legL.position.set(-0.25, 0.6, 0);
-  const legR = legL.clone();
-  legR.position.x = 0.25;
-  procedural.add(body, face, eyeL, eyeR, legL, legR);
+  const mouth = part(new THREE.BoxGeometry(0.3, 0.05, 0.03), glow, 0, 1.2, -0.51);
+  const stick = part(new THREE.CylinderGeometry(0.03, 0.03, 0.4), glow, 0, 0.2, 0);
+  const bulb = part(new THREE.SphereGeometry(0.1, 16, 12), gold, 0, 0.42, 0);
+  const antenna = new THREE.Group();
+  antenna.add(stick, bulb);
+  antenna.position.set(0, 1.82, 0);
+  const limb = (x: number, y: number, w: number, h: number) => {
+    const g = new THREE.BoxGeometry(w, h, w);
+    g.translate(0, -h / 2, 0);
+    const o = new THREE.Mesh(g, glow);
+    o.position.set(x, y, 0);
+    return o;
+  };
+  const legL = limb(-0.28, 0.8, 0.28, 0.8), legR = limb(0.28, 0.8, 0.28, 0.8);
+  const armL = limb(-0.7, 1.6, 0.2, 0.6), armR = limb(0.7, 1.6, 0.2, 0.6);
+  procedural.add(body, screen, eyeL, eyeR, mouth, antenna, legL, legR, armL, armR);
   hero.add(procedural);
   scene.add(hero);
 
@@ -87,6 +101,30 @@ export function createScene(canvas: HTMLCanvasElement) {
     if (!r.ok || (r.headers.get("content-type") ?? "").includes("html")) return;
     new GLTFLoader().load("/models/vectorcito.glb", (g) => { procedural.visible = false; hero.add(g.scene); });
   }).catch(() => { /* sin modelo propio: se queda el personaje base */ });
+
+  // Chispas: un solo grupo de puntos que se reparte entre explosiones.
+  const P = 80;
+  const pPos = new Float32Array(P * 3).fill(999);
+  const pCol = new Float32Array(P * 3);
+  const pVel = new Float32Array(P * 3);
+  const pLife = new Float32Array(P);
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+  pGeo.setAttribute("color", new THREE.BufferAttribute(pCol, 3));
+  const sparks = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.22, vertexColors: true, transparent: true, fog: false }));
+  sparks.frustumCulled = false;
+  scene.add(sparks);
+  let pNext = 0;
+  const burst = (hex: number, n: number, power: number) => {
+    const c = new THREE.Color(hex);
+    for (let k = 0; k < n; k++) {
+      const i = pNext++ % P;
+      pPos.set([hero.position.x, 1.8 + hero.position.y, 0], i * 3);
+      pVel.set([(Math.random() - 0.5) * power, Math.random() * power * 0.9 + 1, (Math.random() - 0.5) * power], i * 3);
+      pCol.set([c.r, c.g, c.b], i * 3);
+      pLife[i] = 0.7 + Math.random() * 0.5;
+    }
+  };
 
   // Estado
   let mode: "menu" | "play" = "menu";
@@ -96,6 +134,9 @@ export function createScene(canvas: HTMLCanvasElement) {
   let shake = 0;
   let jump = 0;
   let celebrate = 0;
+  let hop = 0;
+  let sad = 0;
+  let blink = 2;
   let travelled = 0;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -109,6 +150,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   resize();
 
   const clock = new THREE.Clock();
+  const time0 = () => clock.elapsedTime;
   const tick = () => {
     const dt = Math.min(clock.getDelta(), 0.05);
     const target = (mode === "play" ? 6 + progress * 10 : 3) + boost * 12;
@@ -126,12 +168,40 @@ export function createScene(canvas: HTMLCanvasElement) {
     towers.instanceMatrix.needsUpdate = true;
 
     const T = travelled;
+    hop = Math.max(0, hop - dt * 6);
+    sad = Math.max(0, sad - dt * 2);
     const swing = Math.sin(T * 1.6) * 0.8;
     legL.rotation.x = swing;
     legR.rotation.x = -swing;
-    hero.position.y = Math.abs(Math.sin(jump * Math.PI)) * 1.6 + (reduce ? 0 : Math.abs(Math.sin(T * 1.6)) * 0.08);
+    armL.rotation.x = -swing * 0.9;
+    armR.rotation.x = swing * 0.9;
+    if (celebrate > 0) { armL.rotation.z = armR.rotation.z = 0; armL.rotation.x = armR.rotation.x = Math.PI * 0.85; }
+    const air = Math.abs(Math.sin(jump * Math.PI)) * 1.6 + hop * 0.25;
+    hero.position.y = air + (reduce ? 0 : Math.abs(Math.sin(T * 1.6)) * 0.08);
+    // estirar al saltar, aplastar al caer
+    const stretch = 1 + (jump > 0.5 ? 0.14 : jump > 0 ? -0.1 : 0) * Math.min(1, jump * 2);
+    hero.scale.set(1 / Math.sqrt(stretch), stretch, 1 / Math.sqrt(stretch));
     hero.rotation.y = celebrate > 0 ? celebrate * Math.PI * 4 : 0;
     hero.position.x = (Math.random() - 0.5) * shake * 0.25;
+    antenna.rotation.z = Math.sin(time0() * 5) * 0.25 + swing * 0.15;
+    (bulb.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6 + Math.sin(time0() * 6) * 0.3 + boost;
+    blink -= dt;
+    const closed = blink < 0.12 && blink > 0;
+    if (blink <= 0) blink = 2 + Math.random() * 2.5;
+    eyeL.scale.y = eyeR.scale.y = closed ? 0.1 : sad > 0 ? 0.6 : 1;
+    mouth.scale.set(sad > 0 ? 0.6 : 1 + boost * 0.8, sad > 0 ? 1 : 1 + boost * 3, 1);
+    camera.fov = 60 + boost * 5;
+    camera.updateProjectionMatrix();
+
+    for (let i = 0; i < P; i++) {
+      if (pLife[i] <= 0) { pPos[i * 3 + 1] = 999; continue; }
+      pLife[i] -= dt;
+      pVel[i * 3 + 1] -= 9 * dt;
+      for (let a = 0; a < 3; a++) pPos[i * 3 + a] += pVel[i * 3 + a] * dt;
+      pPos[i * 3 + 2] += speed * dt * 0.5; // el mundo avanza: las chispas se quedan atrás
+    }
+    pGeo.attributes.position.needsUpdate = true;
+    pGeo.attributes.color.needsUpdate = true;
 
     const time = clock.elapsedTime;
     if (mode === "menu") {
@@ -161,8 +231,9 @@ export function createScene(canvas: HTMLCanvasElement) {
     },
     mode(m: "menu" | "play") { mode = m; progress = 0; },
     progress(p: number) { progress = p; },
-    word() { boost = 1; jump = 1; },
-    error() { shake = 1; },
-    win() { celebrate = 1; },
+    key() { hop = 1; },
+    word() { boost = 1; jump = 1; burst(0x17ff93, 14, 4); },
+    error() { shake = 1; sad = 1; burst(0xff7070, 6, 2.5); },
+    win() { celebrate = 1; burst(0xffc107, 40, 8); burst(0x17ff93, 30, 6); },
   };
 }

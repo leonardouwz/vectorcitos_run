@@ -1,17 +1,21 @@
 import { expect, test } from "vitest";
 import { Round } from "./engine";
 
-test("ronda completa: errores, estrellas y ppm", () => {
-  const r = new Round(["el", "sol", "brilla"]);
-  expect(r.type("e", 0)).toBe("ok");
-  expect(r.type("el", 1000)).toBe("word");
-  expect(r.type("x", 1500)).toBe("error");
-  expect(r.type("xy", 1600)).toBe("none"); // mismo tropiezo, no suma
-  expect(r.type("sol", 2000)).toBe("word"); // fallada: no cuenta a la primera
-  expect(r.type("brilla", 12000)).toBe("done");
+test("frase completa: errores, racha, estrellas y ppm", () => {
+  const r = new Round("el sol");
+  expect(r.key("e", 0)).toBe("ok");
+  expect(r.key("x", 500)).toBe("error"); // no avanza
+  expect(r.key("l", 1000)).toBe("ok");
+  expect(r.key(" ", 1500)).toBe("word");
+  expect(r.streak).toBe(2);
+  expect(r.key("s", 2000)).toBe("ok");
+  expect(r.key("o", 2500)).toBe("ok");
+  expect(r.key("l", 6000)).toBe("done");
   expect(r.errors).toBe(1);
-  expect(r.firstTry).toBe(2);
-  expect(r.stars).toBe(3); // 2/3 a la primera
-  expect(r.wpm).toBe(Math.round(13 / 5 / (12 / 60)));
-  expect(r.type("x", 13000)).toBe("none");
+  expect(r.firstTry).toBe(5); // la "l" tras el fallo no cuenta
+  expect(r.accuracy).toBeCloseTo(5 / 6);
+  expect(r.stars).toBe(1);
+  expect(r.wpm).toBe(Math.round(6 / 5 / (6 / 60)));
+  expect(r.key("x", 7000)).toBe("none");
+  expect(new Round("a").key("a", 0)).toBe("done");
 });

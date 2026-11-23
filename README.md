@@ -18,7 +18,7 @@ npm run build    # versión final en dist/
 Tecnología: TypeScript, Vite y Three.js (3D). El sonido se genera en vivo con Web Audio.
 
 ## Cómo se juega
-Escribe cada palabra resaltada. Se avanza solo al escribirla bien. Las estrellas dependen de cuántas palabras aciertas a la primera (⅔ → 3★, ⅓ → 2★, resto → 1★). Terminar un nivel abre el siguiente. El avance se guarda **en el dispositivo**, por jugador (nombre). No hay contraseñas ni servidor.
+Escribe la frase completa, letra por letra, directamente con el teclado (sin cajas de texto; en celular, toca la pantalla para abrir el teclado). Una tecla equivocada no avanza. Las estrellas dependen de cuántas letras aciertas a la primera (95 % o más → 3★, 85 % o más → 2★, resto → 1★). Terminar un nivel abre el siguiente. El avance se guarda **en el dispositivo**, por jugador (nombre). No hay contraseñas ni servidor.
 
 ## Estructura
 
