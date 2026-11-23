@@ -17,5 +17,7 @@ test("frase completa: errores, racha, estrellas y ppm", () => {
   expect(r.stars).toBe(1);
   expect(r.wpm).toBe(Math.round(6 / 5 / (6 / 60)));
   expect(r.key("x", 7000)).toBe("none");
+  expect(r.missedWords).toEqual(["el"]);
+  expect(r.missedChars).toEqual({ l: 1 });
   expect(new Round("a").key("a", 0)).toBe("done");
 });

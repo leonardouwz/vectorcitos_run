@@ -13,6 +13,10 @@ const D = {
     results: "Resultados", words: "Palabras", errors: "Errores", acc: "Precisión", wpm: "Palabras por minuto",
     unlocked: "¡Nivel desbloqueado!", allDone: "¡Completaste todos los niveles!",
     newBest: "¡Nueva mejor marca!", sound: "Sonido", lang: "Idioma",
+    wpmShort: "ppm", progress: "Mi progreso", runs: "Partidas", avgWpm: "ppm promedio", bestWpm: "Mejor ppm", avgAcc: "Precisión media", totalStars: "Estrellas",
+    wpmChart: "Palabras por minuto", accChart: "Precisión (%)", recent: "Últimas partidas", noRuns: "Aún no hay partidas. ¡Juega un nivel!",
+    practice: "Palabras para practicar", cleanRun: "¡Sin fallos!", vsBest: "frente a tu mejor marca", sameBest: "Igualaste tu mejor marca", lastN: "últimas",
+    hardKeys: "Letras que más fallas",
     msg1: "Casi. Intenta de nuevo.", msg2: "¡Muy bien!", msg3: "¡Perfecto!",
   },
   en: {
@@ -27,6 +31,10 @@ const D = {
     results: "Results", words: "Words", errors: "Errors", acc: "Accuracy", wpm: "Words per minute",
     unlocked: "Level unlocked!", allDone: "You completed every level!",
     newBest: "New best run!", sound: "Sound", lang: "Language",
+    wpmShort: "wpm", progress: "My progress", runs: "Runs", avgWpm: "Average wpm", bestWpm: "Best wpm", avgAcc: "Average accuracy", totalStars: "Stars",
+    wpmChart: "Words per minute", accChart: "Accuracy (%)", recent: "Recent runs", noRuns: "No runs yet. Play a level!",
+    practice: "Words to practice", cleanRun: "No mistakes!", vsBest: "vs your best run", sameBest: "You matched your best run", lastN: "last",
+    hardKeys: "Keys you miss most",
     msg1: "Almost. Try again.", msg2: "Nice work!", msg3: "Perfect!",
   },
 } as const;

@@ -11,6 +11,10 @@ export class Round {
   start = 0;
   end = 0;
   readonly chars: string[];
+  /** Veces que se falló cada letra esperada. */
+  readonly missedChars: Record<string, number> = {};
+  /** Palabras donde hubo al menos un fallo, sin repetir y en orden. */
+  readonly missedWords: string[] = [];
   private started = false;
   private missed = false;
 
@@ -26,6 +30,10 @@ export class Round {
       this.streak = 0;
       this.missed = true;
       this.errors++;
+      const k = this.current.toLowerCase();
+      this.missedChars[k] = (this.missedChars[k] ?? 0) + 1;
+      const w = this.wordAt(this.pos);
+      if (w && !this.missedWords.includes(w)) this.missedWords.push(w);
       return "error";
     }
     if (!this.missed) this.firstTry++;
@@ -35,6 +43,13 @@ export class Round {
     this.bestStreak = Math.max(this.bestStreak, this.streak);
     if (this.done) { this.end = now; return "done"; }
     return c === " " ? "word" : "ok";
+  }
+
+  private wordAt(i: number) {
+    let a = i, b = i;
+    while (a > 0 && this.chars[a - 1] !== " ") a--;
+    while (b < this.chars.length && this.chars[b] !== " ") b++;
+    return this.chars.slice(a, b).join("").replace(/[.,;:!?¡¿]/g, "");
   }
 
   /** Letras acertadas a la primera sobre el total. */

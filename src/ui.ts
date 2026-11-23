@@ -94,6 +94,7 @@ function levelMap() {
   show(`${toolbar()}
     <main class="wide">
       <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length}</span></header>
+      <button class="ghost" id="prog" style="align-self:flex-start">📈 ${tr("progress")}</button>
       <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
       <div class="grid">${LEVELS.filter((l) => l.diff === tab).map((l) => {
         const open = store.unlocked(l.id), b = store.best(l.id);
@@ -104,8 +105,61 @@ function levelMap() {
     </main>`, (r) => {
     wireToolbar(r, levelMap);
     on(r, "#back", profile);
+    on(r, "#prog", progress);
     r.querySelectorAll<HTMLElement>(".tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); tab = b.dataset.d as Diff; levelMap(); }));
     r.querySelectorAll<HTMLElement>(".lvl.open").forEach((b) => b.addEventListener("click", () => { sfx.click(); info(LEVELS.find((l) => l.id === +b.dataset.id!)!); }));
+  });
+}
+
+function chart(vals: number[], max: number, title: string) {
+  const W = 600, H = 170, px = 34, py = 22;
+  const x = (i: number) => px + (vals.length < 2 ? (W - 2 * px) / 2 : (i * (W - 2 * px)) / (vals.length - 1));
+  const y = (v: number) => H - py - (v / max) * (H - 2 * py);
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const grid = [0, 0.5, 1].map((k) => `<line x1="${px}" x2="${W - px}" y1="${y(max * k)}" y2="${y(max * k)}" class="gl"/><text x="${px - 6}" y="${y(max * k) + 4}" class="gt" text-anchor="end">${Math.round(max * k)}</text>`).join("");
+  const last = vals.length - 1;
+  return `<figure class="chart"><figcaption>${title}</figcaption>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}: ${vals.join(", ")}">${grid}
+      ${vals.length > 1 ? `<polyline points="${pts.join(" ")}" class="ln"/>` : ""}
+      ${vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === last ? 5 : 3}" class="pt"/>`).join("")}
+      <text x="${x(last)}" y="${y(vals[last]) - 10}" class="gt hi" text-anchor="middle">${vals[last]}</text>
+    </svg></figure>`;
+}
+
+function progress() {
+  const runs = store.runs;
+  const recent = runs.slice(-20);
+  const avg = (a: number[]) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
+  const totalStars = LEVELS.reduce((n, l) => n + (store.best(l.id)?.stars ?? 0), 0);
+  const miss: Record<string, number> = {};
+  runs.slice(-50).forEach((r) => Object.entries(r.miss).forEach(([k, v]) => { miss[k] = (miss[k] ?? 0) + v; }));
+  const hardest = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const fmt = new Intl.DateTimeFormat(store.lang, { day: "numeric", month: "short" });
+  const rows = runs.slice(-8).reverse().map((r) => {
+    const lv = LEVELS.find((x) => x.id === r.id)!;
+    return `<li><span>${fmt.format(r.ts)}</span><span>${tr("level")} ${lv.n} · ${tr(lv.diff)}</span><b>${r.wpm}</b><span>${r.acc}%</span><span class="st">${stars(r.stars)}</span></li>`;
+  }).join("");
+  show(`${toolbar()}
+    <main class="wide">
+      <header class="bar"><h2>${tr("progress")}</h2><span class="who">${esc(store.current)}</span></header>
+      ${runs.length === 0 ? `<p class="tag" style="margin:2rem auto">${tr("noRuns")}</p>` : `
+      <dl class="stats wide-stats">
+        <div><dt>${tr("runs")}</dt><dd>${runs.length}</dd></div>
+        <div><dt>${tr("avgWpm")}</dt><dd>${avg(recent.map((r) => r.wpm))}</dd></div>
+        <div><dt>${tr("bestWpm")}</dt><dd>${Math.max(...runs.map((r) => r.wpm))}</dd></div>
+        <div><dt>${tr("avgAcc")}</dt><dd>${avg(recent.map((r) => r.acc))}%</dd></div>
+        <div><dt>${tr("totalStars")}</dt><dd>${totalStars}/${LEVELS.length * 3}</dd></div>
+      </dl>
+      <div class="charts">
+        ${chart(recent.map((r) => r.wpm), Math.max(10, Math.ceil(Math.max(...recent.map((r) => r.wpm)) / 20) * 20), `${tr("wpmChart")} · ${tr("lastN")} ${recent.length}`)}
+        ${chart(recent.map((r) => r.acc), 100, `${tr("accChart")} · ${tr("lastN")} ${recent.length}`)}
+      </div>
+      ${hardest.length ? `<section class="panel"><h3>${tr("hardKeys")}</h3><div class="chips">${hardest.map(([k, n]) => `<span class="chip key">${esc(k === " " ? "␣" : k)} <small>×${n}</small></span>`).join("")}</div></section>` : ""}
+      <section class="panel"><h3>${tr("recent")}</h3><ul class="runs">${rows}</ul></section>`}
+      <button class="ghost" id="back" style="align-self:flex-start">${tr("back")}</button>
+    </main>`, (r) => {
+    wireToolbar(r, progress);
+    on(r, "#back", levelMap);
   });
 }
 
@@ -208,7 +262,12 @@ function results(l: Level, round: Round) {
   const nextLevel = LEVELS[LEVELS.findIndex((x) => x.id === l.id) + 1];
   const wasOpen = nextLevel ? store.unlocked(nextLevel.id) : true;
   const acc = Math.round(round.accuracy * 100);
+  const prev = store.best(l.id);
   const isBest = store.record(l.id, { stars: round.stars, wpm: round.wpm, acc });
+  const miss = Object.fromEntries(Object.entries(round.missedChars).sort((a, b) => b[1] - a[1]).slice(0, 5));
+  store.addRun({ id: l.id, ts: Date.now(), stars: round.stars, wpm: round.wpm, acc, errors: round.errors, secs: Math.round(round.seconds), miss });
+  const d = prev ? round.wpm - prev.wpm : 0;
+  const versus = prev ? (d === 0 ? tr("sameBest") : `${d > 0 ? "+" : ""}${d} ${tr("wpmShort")} ${tr("vsBest")}`) : "";
   const opened = nextLevel && !wasOpen && store.unlocked(nextLevel.id);
   music.mood("menu");
   const msg = round.stars === 3 ? "msg3" : round.stars === 2 ? "msg2" : "msg1";
@@ -225,7 +284,11 @@ function results(l: Level, round: Round) {
         <div><dt>${tr("errors")}</dt><dd data-n="${round.errors}">0</dd></div>
         <div><dt>${tr("time")}</dt><dd data-n="${Math.round(round.seconds)}" data-s="s">0</dd></div>
       </dl>
-      ${isBest ? `<p class="good pop" style="animation-delay:1.7s">${tr("newBest")}</p>` : ""}
+      ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
+      <div class="practice pop" style="animation-delay:1.7s">${round.missedWords.length
+        ? `<span class="hint">${tr("practice")}</span><div class="chips">${round.missedWords.map((w) => `<span class="chip">${esc(w)}</span>`).join("")}</div>`
+        : `<span class="good">${tr("cleanRun")}</span>`}</div>
+      ${isBest ? `<p class="good pop" style="animation-delay:1.8s">${tr("newBest")}</p>` : ""}
       ${opened ? `<p class="good pop" style="animation-delay:1.9s">${tr("unlocked")}</p>` : ""}
       ${!nextLevel ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <div class="row">

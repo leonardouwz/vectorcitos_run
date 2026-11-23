@@ -2,15 +2,18 @@ import { LEVELS, type Lang } from "./content";
 import { detectLang } from "./i18n";
 
 export interface Best { stars: number; wpm: number; acc: number }
+export interface Run extends Best { id: number; ts: number; errors: number; secs: number; miss: Record<string, number> }
+const MAX_RUNS = 200;
 interface Data {
   lang: Lang;
   muted: boolean;
   current: string;
   profiles: Record<string, Record<number, Best>>;
+  history: Record<string, Run[]>;
 }
 
 const KEY = "vectorcitos-run:v2";
-let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {} };
+let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {} };
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) data = { ...data, ...JSON.parse(raw) };
@@ -28,6 +31,14 @@ export const store = {
   login(name: string) {
     data.current = name;
     data.profiles[name] ??= {};
+    save();
+  },
+  /** Partidas del jugador actual, de la más antigua a la más reciente. */
+  get runs(): Run[] { return data.history[data.current] ?? []; },
+  addRun(r: Run) {
+    const h = (data.history[data.current] ??= []);
+    h.push(r);
+    if (h.length > MAX_RUNS) h.splice(0, h.length - MAX_RUNS);
     save();
   },
   best(id: number): Best | undefined { return data.profiles[data.current]?.[id]; },
