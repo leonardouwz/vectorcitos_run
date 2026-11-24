@@ -5,6 +5,7 @@ import { dateKey, nextStreak, prevKey } from "./modes";
 export interface Best { stars: number; wpm: number; acc: number }
 export interface Run extends Best { id: number; ts: number; errors: number; secs: number; miss: Record<string, number> }
 const MAX_RUNS = 200;
+export interface Online { pid: string; on: boolean; room: string }
 export interface DayResult { stars: number; wpm: number; acc: number }
 export interface Daily { streak: number; last: string; days: Record<string, DayResult> }
 interface Data {
@@ -15,10 +16,11 @@ interface Data {
   history: Record<string, Run[]>;
   time: Record<string, number>;
   daily: Record<string, Daily>;
+  online: Record<string, Online>;
 }
 
 const KEY = "vectorcitos-run:v2";
-let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {} };
+let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {} };
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) data = { ...data, ...JSON.parse(raw) };
@@ -53,6 +55,13 @@ export const store = {
     if (better) { data.time[data.current] = score; save(); }
     return better;
   },
+  /** Ajustes del ranking en línea. El código privado (pid) nunca sale del dispositivo, salvo para firmar las marcas. */
+  get online(): Online {
+    let o = data.online[data.current];
+    if (!o) { o = data.online[data.current] = { pid: crypto.randomUUID(), on: false, room: "" }; save(); }
+    return o;
+  },
+  setOnline(patch: Partial<Omit<Online, "pid">>) { Object.assign(this.online, patch); save(); },
   get daily(): Daily { return data.daily[data.current] ?? { streak: 0, last: "", days: {} }; },
   /** Días seguidos vigentes: si pasó más de un día sin jugar el reto, la racha se perdió. */
   get dailyStreak() {

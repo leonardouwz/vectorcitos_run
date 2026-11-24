@@ -116,3 +116,15 @@ main.form .stack { width: 100%; }
 textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .tab[role="radio"][aria-checked="true"] { background: var(--neon); color: var(--noche); border-color: var(--neon); }
+.check { display: flex; gap: .6rem; align-items: center; cursor: pointer; }
+.check input { width: 1.2rem; height: 1.2rem; accent-color: var(--neon); }
+.row-form { display: flex; gap: .6rem; flex-wrap: wrap; } .row-form .field { flex: 1 1 200px; width: auto; } .row-form .btn { padding: .5rem 1.1rem; font-size: 1rem; }
+.gap { flex: 1; }
+.board { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.board li { display: grid; grid-template-columns: 2.4rem 1fr auto auto 3.6rem; gap: .6rem; align-items: center; background: rgb(5 4 41 / .94); border: 1px solid var(--linea); border-radius: 8px; padding: .55rem .8rem; }
+.board li.hint, .board li.gapline { display: block; text-align: center; background: none; border: 0; }
+.board li.me { border-color: var(--neon); box-shadow: 0 0 12px rgb(23 255 147 / .25); }
+.board .pos { font-family: var(--mono); color: var(--neon); } .board .nick { overflow-wrap: anywhere; } .board .nick small { color: var(--suave); }
+.board .stars { color: var(--estrella); font-size: .85rem; } .board .stars .off { color: var(--linea); opacity: 1; }
+.board .wpm { color: var(--suave); font-size: .85rem; } .board b { font-family: var(--mono); font-weight: 400; color: var(--neon); text-align: right; }
+@media (max-width: 520px) { .board li { grid-template-columns: 2rem 1fr 3rem; } .board .stars, .board .wpm { display: none; } }

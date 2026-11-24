@@ -1,6 +1,7 @@
 import { DIFFS, LEVELS, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
+import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { store } from "./store";
 import { music, setMuted, sfx, unlockAudio } from "./audio";
@@ -102,6 +103,7 @@ function levelMap() {
       <div class="modes">
         <button class="mode" id="m-daily"><b>📅 ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `🔥 ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
         <button class="mode" id="m-time"><b>⏱️ ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
+        <button class="mode" id="rank"><b>🏆 ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "·"}</small></button>
         <button class="mode" id="prog"><b>📈 ${tr("progress")}</b></button>
         <button class="mode" id="box"><b>💌 ${tr("box")}</b></button>
       </div>
@@ -116,6 +118,7 @@ function levelMap() {
     wireToolbar(r, levelMap);
     on(r, "#back", profile);
     on(r, "#prog", progress);
+    on(r, "#rank", () => ranking("daily", "world"));
     on(r, "#box", () => suggest(levelMap));
     on(r, "#m-daily", () => modeInfo("daily"));
     on(r, "#m-time", () => modeInfo("time"));
@@ -420,6 +423,7 @@ function results(o: Outcome) {
       <dl class="stats">${tiles.map(([k, n, suf]) => `<div><dt>${tr(k)}</dt><dd data-n="${n}" data-s="${suf}">0</dd></div>`).join("")}</dl>
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       ${streakMsg ? `<p class="good pop" style="animation-delay:1.6s">${streakMsg}</p>` : ""}
+      <p class="hint" id="rankline" aria-live="polite"></p>
       <div class="practice pop" style="animation-delay:1.7s">${sum.missedWords.length
         ? `<span class="hint">${tr("toPractice")}</span><div class="chips">${sum.missedWords.slice(0, 12).map((w) => `<span class="chip">${esc(w)}</span>`).join("")}</div>`
         : `<span class="good">${tr("cleanRun")}</span>`}</div>
@@ -439,9 +443,72 @@ function results(o: Outcome) {
     for (let i = 0; i < stars; i++) timers.push(window.setTimeout(() => sfx.star(i), 350 + i * 350 + 200));
     if (stars === 3) timers.push(window.setTimeout(sfx.fanfare, 1600));
     cleanup = () => timers.forEach(clearTimeout);
+    // Ranking en línea (si el jugador lo activó): se envía la marca y se muestra el puesto.
+    if (o.kind !== "level") {
+      const line = r.querySelector<HTMLElement>("#rankline")!;
+      const text = (name: string, p: Place | null | undefined) => (p?.rank ? `${name}: ${tr("place")} ${p.rank} ${tr("of")} ${p.total}` : "");
+      void submit(o.kind, o.kind === "daily" ? Math.round((sum.wpm * acc) / 100) : score, sum.wpm, acc, stars).then((res) => {
+        if (res && line.isConnected) line.textContent = `🏆 ${[text(tr("world"), res.global), text(`${tr("room")} ${store.online.room}`, res.room)].filter(Boolean).join(" · ")}`;
+      });
+    }
     on(r, "#map", () => { if (l) tab = l.diff; levelMap(); });
     on(r, "#retry", o.retry);
     on(r, "#next", () => { tab = nextLevel!.diff; info(nextLevel!); });
+  });
+}
+
+function ranking(board: "daily" | "time", scope: "world" | "room") {
+  const o = store.online;
+  if (scope === "room" && !o.room) scope = "world";
+  show(`${toolbar()}
+    <main class="wide">
+      <header class="bar"><h2>🏆 ${tr("ranking")}</h2><span class="who">${esc(store.current)}</span></header>
+      <section class="panel">
+        <label class="check"><input type="checkbox" id="on" ${o.on ? "checked" : ""}> ${tr("appearAs")} <b>${esc(store.current)}</b></label>
+        <form id="rf" class="row-form">
+          <input id="room" class="field" maxlength="12" value="${esc(o.room)}" placeholder="${tr("roomLabel")}" aria-label="${tr("roomLabel")}" autocomplete="off" />
+          <button class="btn" type="submit">${tr("save")}</button>
+        </form>
+        <p class="hint">${tr("roomHint")}</p>
+        <p class="hint">${tr("rankPrivacy")}</p>
+      </section>
+      <div class="tabs">
+        <button class="tab" data-b="daily" aria-selected="${board === "daily"}">📅 ${tr("rankDaily")}</button>
+        <button class="tab" data-b="time" aria-selected="${board === "time"}">⏱️ ${tr("timeAttack")}</button>
+        <span class="gap"></span>
+        <button class="tab" data-s="world" aria-selected="${scope === "world"}">🌍 ${tr("scopeWorld")}</button>
+        ${o.room ? `<button class="tab" data-s="room" aria-selected="${scope === "room"}">🏫 ${esc(o.room)}</button>` : ""}
+      </div>
+      <ol class="board" id="board"><li class="hint">…</li></ol>
+      <div class="row"><button class="ghost" id="back">${tr("back")}</button><button class="ghost" id="forget">${tr("forgetBtn")}</button></div>
+      <p class="hint" id="note" role="status"></p>
+    </main>`, (r) => {
+    wireToolbar(r, () => ranking(board, scope));
+    on(r, "#back", levelMap);
+    r.querySelector("#on")!.addEventListener("change", (e) => { store.setOnline({ on: (e.target as HTMLInputElement).checked }); });
+    r.querySelector("#rf")!.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const code = (r.querySelector("#room") as HTMLInputElement).value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      store.setOnline({ room: code.length >= 3 ? code : "" });
+      ranking(board, code.length >= 3 ? "room" : "world");
+    });
+    r.querySelectorAll<HTMLElement>("[data-b]").forEach((b) => b.addEventListener("click", () => ranking(b.dataset.b as typeof board, scope)));
+    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => ranking(board, b.dataset.s as typeof scope)));
+    const note = r.querySelector<HTMLElement>("#note")!;
+    r.querySelector("#forget")!.addEventListener("click", async () => {
+      try { await forget(); store.setOnline({ on: false }); note.textContent = tr("forgotten"); (r.querySelector("#on") as HTMLInputElement).checked = false; }
+      catch { note.textContent = tr("errNet"); }
+    });
+
+    const list = r.querySelector<HTMLElement>("#board")!;
+    const meId = idOf(o.pid);
+    fetchBoard(board, scope === "room" ? o.room : "").then(async (b) => {
+      if (!list.isConnected) return;
+      const me = await meId;
+      if (!b.top.length) { list.innerHTML = `<li class="hint">${tr("rankEmpty")}</li>`; return; }
+      const row = (x: (typeof b.top)[number]) => `<li class="${x.id === me ? "me" : ""}" value="${x.rank}"><span class="pos">${x.rank}</span><span class="nick">${esc(x.nick)}${x.id === me ? ` <small>(${tr("you")})</small>` : ""}</span><span class="stars">${stars(x.stars)}</span><span class="wpm">${x.wpm} ${tr("wpmShort")}</span><b>${x.score}</b></li>`;
+      list.innerHTML = b.top.map(row).join("") + (b.me && b.me.rank > b.top.length ? `<li class="gapline">⋯</li>${row(b.me)}` : "");
+    }).catch(() => { if (list.isConnected) list.innerHTML = `<li class="hint">${tr("rankErr")}</li>`; });
   });
 }
 
