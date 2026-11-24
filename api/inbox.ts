@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { get, list } from "@vercel/blob";
-import type { Suggestion } from "./_validate";
+import type { Suggestion } from "./_validate.js";
 
 const MAX_SHOWN = 300;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);

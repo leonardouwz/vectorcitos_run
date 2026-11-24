@@ -1,6 +1,6 @@
 import { del, list, put } from "@vercel/blob";
 import { timingSafeEqual } from "node:crypto";
-import { boardPrefix, cleanRoom, entryPath, hashPid, parseEntry, sortEntries, validateSubmission, type BoardName, type Entry } from "./_rank";
+import { boardPrefix, cleanRoom, entryPath, hashPid, parseEntry, sortEntries, validateSubmission, type BoardName, type Entry } from "./_rank.js";
 
 const BOARD_CAP = 1000; // jugadores por tabla
 const TOP = 20;

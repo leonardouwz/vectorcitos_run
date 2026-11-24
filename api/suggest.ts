@@ -1,5 +1,5 @@
 import { list, put } from "@vercel/blob";
-import { validate } from "./_validate";
+import { validate } from "./_validate.js";
 
 const DAILY_CAP = 200; // tope de mensajes por día para que un bot no llene el buzón
 
