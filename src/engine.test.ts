@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { Round } from "./engine";
+import { Round, summarize } from "./engine";
 
 test("frase completa: errores, racha, estrellas y ppm", () => {
   const r = new Round("el sol");
@@ -20,4 +20,14 @@ test("frase completa: errores, racha, estrellas y ppm", () => {
   expect(r.missedWords).toEqual(["el"]);
   expect(r.missedChars).toEqual({ l: 1 });
   expect(new Round("a").key("a", 0)).toBe("done");
+});
+
+test("resumen de varias frases, también si la última queda a medias", () => {
+  const a = new Round("ab"), b = new Round("cd");
+  a.key("a", 0); a.key("x", 1); a.key("b", 2); // 1 fallo en "ab"
+  b.key("c", 3); // "cd" queda a medias
+  const s = summarize([a, b], 60);
+  expect(s).toMatchObject({ chars: 3, firstTry: 2, errors: 1, phrases: 1, wpm: Math.round(3 / 5) });
+  expect(s.acc).toBeCloseTo(2 / 3);
+  expect(s.missedWords).toEqual(["ab"]);
 });

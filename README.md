@@ -20,6 +20,16 @@ Tecnología: TypeScript, Vite y Three.js (3D). El sonido se genera en vivo con W
 ## Cómo se juega
 Escribe la frase completa, letra por letra, directamente con el teclado (sin cajas de texto; en celular, toca la pantalla para abrir el teclado). Una tecla equivocada no avanza. Las estrellas dependen de cuántas letras aciertas a la primera (95 % o más → 3★, 85 % o más → 2★, resto → 1★). Terminar un nivel abre el siguiente. El avance se guarda **en el dispositivo**, por jugador (nombre). No hay contraseñas ni servidor.
 
+## Modos de juego
+- **Niveles** (fácil, intermedio, difícil) y **Práctica** de teclas.
+- **Reto diario:** tres frases (fácil, media, difícil), iguales para todo el mundo ese día (fecha UTC). Cuenta días seguidos.
+- **Contrarreloj:** 60 segundos, frases sin fin. Cada letra acertada suma 10 puntos y cada error resta 5.
+- Todas empiezan con cuenta regresiva (3, 2, 1, ¡YA!).
+
+## Buzón de sugerencias
+Los jugadores escriben desde 💌 en el inicio o en el mapa. El mensaje va a `api/suggest.ts`, que lo guarda en un almacén **privado** de Vercel Blob (tope de 200 por día y campo trampa contra bots).
+Para leerlos abre `https://TU-DOMINIO/api/inbox?key=TU_CLAVE`, donde la clave es la variable de entorno `ADMIN_KEY` del proyecto en Vercel. Con `&format=json` los obtienes como datos. Además de `ADMIN_KEY`, hace falta `BLOB_READ_WRITE_TOKEN`, que Vercel crea al conectar el almacén.
+
 ## Estructura
 
 | Archivo | Qué hace |
@@ -27,7 +37,9 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 | `src/engine.ts` | Reglas: palabras, errores, estrellas, palabras por minuto |
 | `src/content.ts` | Niveles y frases en español e inglés |
 | `src/i18n.ts` | Textos de la interfaz |
-| `src/store.ts` | Jugadores, avance e idioma (localStorage) |
+| `src/store.ts` | Jugadores, avance, historial y racha (localStorage) |
+| `src/modes.ts` | Reto diario, días seguidos y frases de la contrarreloj |
+| `api/` | Buzón de sugerencias (funciones de Vercel) |
 | `src/scene.ts` | Escena 3D y personaje |
 | `src/audio.ts` | Efectos y música |
 | `src/ui.ts`, `src/style.css` | Pantallas y estilo (ver la guía de marca) |

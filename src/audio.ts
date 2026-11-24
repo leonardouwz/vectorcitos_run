@@ -57,6 +57,8 @@ export const sfx = {
   word: () => { tone(880, 0.09, "square", 0.08); tone(1320, 0.12, "square", 0.06, 0.06); },
   error: () => tone(180, 0.2, "sawtooth", 0.11, 0, 70),
   click: () => tone(520, 0.06, "triangle", 0.1),
+  tick: (i: number) => tone(440 * 2 ** (i / 12), 0.12, "square", 0.09),
+  go: () => { tone(880, 0.3, "square", 0.1); tone(1320, 0.3, "triangle", 0.1, 0.02); },
   star: (i: number) => tone(660 * 2 ** (i * 4 / 12), 0.35, "triangle", 0.16),
   fanfare: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.3, "triangle", 0.12, i * 0.09)),
 };

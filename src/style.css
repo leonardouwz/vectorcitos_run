@@ -103,3 +103,16 @@ main.wide > .ghost { align-self: flex-start; }
 .practice { display: grid; gap: .5rem; justify-items: center; }
 @media (max-width: 520px) { .runs li { grid-template-columns: 3.5rem 1fr 2.4rem 3rem; } .runs li .st { display: none; } }
 .panel, .chart, .stats div { background: rgb(5 4 41 / .94); backdrop-filter: blur(6px); }
+.cd { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(5 4 41 / .72); color: var(--neon); font: 400 clamp(3rem, 12vw, 6rem) var(--mono); text-shadow: 0 0 30px rgb(23 255 147 / .7); border-radius: 8px; pointer-events: none; z-index: 2; }
+.cd:empty { display: none; }
+.cd.hit { animation: pop .4s cubic-bezier(.2, 1.6, .4, 1); }
+.phrase:has(.cd:not(:empty)) .tap { display: none; }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .7rem; }
+.mode { display: grid; gap: .15rem; text-align: left; font: 400 1rem var(--mono); color: var(--hielo); background: rgb(10 10 53 / .88); border: 1px solid var(--linea); border-radius: 8px; padding: .7rem .9rem; cursor: pointer; }
+.mode:hover { border-color: var(--neon); }
+.mode b { font-weight: 400; color: var(--neon); } .mode small { color: var(--suave); font-family: var(--sans); font-size: .82rem; }
+main.form { align-items: stretch; text-align: left; }
+main.form .stack { width: 100%; }
+textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.tab[role="radio"][aria-checked="true"] { background: var(--neon); color: var(--noche); border-color: var(--neon); }
