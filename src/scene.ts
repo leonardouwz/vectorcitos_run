@@ -95,6 +95,28 @@ export function createScene(canvas: HTMLCanvasElement) {
   const legL = limb(-0.28, 0.8, 0.28, 0.8), legR = limb(0.28, 0.8, 0.28, 0.8);
   const armL = limb(-0.7, 1.6, 0.2, 0.6), armR = limb(0.7, 1.6, 0.2, 0.6);
   procedural.add(body, screen, eyeL, eyeR, mouth, antenna, legL, legR, armL, armR);
+  // Accesorios (ver src/cosmetics.ts). Todos empiezan ocultos; world.dress() muestra los puestos.
+  const mat = (color: number, emissive = 0) => new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: emissive ? 0.5 : 0, roughness: 0.45, metalness: 0.2 });
+  const black = mat(0x2a2a55), red = mat(0xff7070), goldM = mat(0xffc107, 0xffc107), purple = mat(0x6a2bd9);
+  const at = (o: THREE.Object3D, x: number, y: number, z: number) => { o.position.set(x, y, z); return o; };
+  const group = (...c: THREE.Object3D[]) => { const g = new THREE.Group(); g.add(...c); g.visible = false; procedural.add(g); return g; };
+  const cyl = (rt: number, rb: number, h: number, m: THREE.Material, open = false) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 20, 1, open), m);
+  const spikes = Array.from({ length: 5 }, (_, k) => at(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.24, 8), goldM), Math.cos((k * 2 * Math.PI) / 5) * 0.28, 1.84 + 0.3, Math.sin((k * 2 * Math.PI) / 5) * 0.28));
+  const lens = (m: THREE.Material, w: number, h: number) => [-0.2, 0.2].map((x) => at(new THREE.Mesh(new RoundedBoxGeometry(w, h, 0.04, 3, 0.04), m), x, 1.4, -0.545));
+  const ring = (x: number) => at(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 24), black), x, 1.4, -0.53);
+  const cape = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.25, 0.04).translate(0, -0.62, 0), purple);
+  const accessories: Record<string, THREE.Object3D> = {
+    party: group(at(new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.6, 20), red), 0, 1.82 + 0.3, 0), at(new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), goldM), 0, 1.82 + 0.62, 0)),
+    tophat: group(at(cyl(0.52, 0.52, 0.05, black), 0, 1.82 + 0.03, 0), at(cyl(0.32, 0.32, 0.42, black), 0, 1.82 + 0.25, 0), at(cyl(0.325, 0.325, 0.08, red), 0, 1.82 + 0.1, 0)),
+    crown: group(at(cyl(0.32, 0.32, 0.2, goldM, true), 0, 1.82 + 0.1, 0), ...spikes),
+    glasses: group(ring(-0.2), ring(0.2), at(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.03), black), 0, 1.4, -0.53)),
+    shades: group(...lens(black, 0.3, 0.2), at(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.04), black), 0, 1.44, -0.545)),
+    bow: group(at(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.05), red), -0.12, 0.95, -0.5), at(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.05), red), 0.12, 0.95, -0.5), at(new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), red), 0, 0.95, -0.5)),
+    cape: group(at(cape, 0, 1.78, 0.5)),
+  };
+  accessories.bow.children[0].rotation.z = 0.25;
+  accessories.bow.children[1].rotation.z = -0.25;
+
   hero.add(procedural);
   scene.add(hero);
 
@@ -128,7 +150,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   };
 
   // Estado
-  let mode: "menu" | "play" = "menu";
+  let mode: "menu" | "play" | "shop" = "menu";
   let progress = 0;
   let speed = 3;
   let boost = 0;
@@ -185,6 +207,7 @@ export function createScene(canvas: HTMLCanvasElement) {
     hero.rotation.y = celebrate > 0 ? celebrate * Math.PI * 4 : 0;
     hero.position.x = (Math.random() - 0.5) * shake * 0.25;
     antenna.rotation.z = Math.sin(time0() * 5) * 0.25 + swing * 0.15;
+    cape.rotation.x = 0.12 + Math.min(speed / 18, 0.5) + Math.sin(time0() * 7) * 0.05;
     (bulb.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6 + Math.sin(time0() * 6) * 0.3 + boost;
     blink -= dt;
     const closed = blink < 0.12 && blink > 0;
@@ -205,7 +228,11 @@ export function createScene(canvas: HTMLCanvasElement) {
     pGeo.attributes.color.needsUpdate = true;
 
     const time = clock.elapsedTime;
-    if (mode === "menu") {
+    if (mode === "shop") {
+      const a = Math.sin(time * 0.4) * 1.0;
+      camera.position.set(Math.sin(a) * 8.5, 1.6, Math.cos(a) * 8.5);
+      camera.lookAt(0, -0.1, 0);
+    } else if (mode === "menu") {
       camera.position.set(Math.sin(time * 0.25) * 6, 3.2, 8);
       camera.lookAt(0, 3.4, 0);
     } else {
@@ -230,7 +257,12 @@ export function createScene(canvas: HTMLCanvasElement) {
       (sun.material as THREE.MeshBasicMaterial).color.set(th.sun);
       stars.visible = d !== "easy";
     },
-    mode(m: "menu" | "play") { mode = m; progress = 0; },
+    mode(m: "menu" | "play" | "shop") { mode = m; progress = 0; },
+    /** Muestra los accesorios que lleva puestos el jugador. */
+    dress(worn: Record<string, string | undefined>) {
+      const on = Object.values(worn);
+      for (const [id, o] of Object.entries(accessories)) o.visible = on.includes(id);
+    },
     progress(p: number) { progress = p; },
     key() { hop = 1; },
     word() { boost = 1; jump = 1; burst(0x17ff93, 14, 4); },

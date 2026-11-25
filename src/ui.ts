@@ -1,6 +1,7 @@
 import { DIFFS, LEVELS, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
+import { ITEMS, SLOTS, SLOT_NAMES, coinsFor } from "./cosmetics";
 import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
@@ -21,6 +22,7 @@ const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
 
 function show(html: string, onMount?: (root: HTMLElement) => void) {
+  world.dress(store.worn);
   cleanup?.();
   cleanup = null;
   app.innerHTML = `<div class="screen">${html}</div>`;
@@ -112,14 +114,47 @@ function guide(next: () => void) {
   });
 }
 
+function shop() {
+  world.theme("menu");
+  world.mode("shop");
+  const worn = store.worn;
+  show(`${toolbar()}
+    <main class="wide shop">
+      <header class="bar"><h2>🛍️ ${tr("shop")}</h2><span class="who">🪙 ${store.coins}</span></header>
+      <p class="hint">${tr("shopHint")}</p>
+      <div class="shopbox">
+        ${SLOTS.map((slot) => `<section class="slot"><h3>${SLOT_NAMES[slot][store.lang]}</h3>${ITEMS.filter((i) => i.slot === slot).map((i) => {
+          const owned = store.owns(i.id), on = worn[slot] === i.id;
+          const action = owned ? (on ? "off" : "on") : "buy";
+          const afford = owned || store.coins >= i.price;
+          return `<div class="item ${on ? "wearing" : ""}"><span class="em">${i.emoji}</span><span class="nm">${i.name[store.lang]}</span>
+            <span class="pr">${owned ? (on ? `✓ ${tr("wearing")}` : "✓") : `🪙 ${i.price}`}</span>
+            <button class="btn small" data-act="${action}" data-id="${i.id}" data-slot="${slot}" ${afford ? "" : `disabled title="${tr("notEnough")}"`}>${owned ? (on ? tr("unequip") : tr("equip")) : tr("buy")}</button></div>`;
+        }).join("")}</section>`).join("")}
+      </div>
+      <button class="ghost" id="back" style="align-self:flex-start">${tr("back")}</button>
+    </main>`, (r) => {
+    wireToolbar(r, shop);
+    on(r, "#back", () => { world.mode("menu"); levelMap(); });
+    r.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => b.addEventListener("click", () => {
+      const { act, id, slot } = b.dataset as { act: string; id: string; slot: (typeof SLOTS)[number] };
+      if (act === "buy") { if (!store.buy(id)) return; sfx.star(1); world.word(); }
+      else { sfx.click(); store.wear(slot, act === "on" ? id : null); }
+      shop();
+    }));
+  });
+}
+
 function levelMap() {
   world.theme(tab);
   world.mode("menu");
   const done = LEVELS.filter((l) => store.best(l.id)).length;
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length}</span></header>
+      <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length} · 🪙 ${store.coins}</span></header>
       <div class="modes">
+        ${store.giftReady ? `<button class="mode gift" id="gift"><b>🎁 ${tr("giftDay")}</b><small>+${store.giftAmount} 🪙</small></button>` : ""}
+        <button class="mode" id="shop"><b>🛍️ ${tr("shop")}</b><small>🪙 ${store.coins}</small></button>
         <button class="mode" id="m-daily"><b>📅 ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `🔥 ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
         <button class="mode" id="m-time"><b>⏱️ ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
         <button class="mode" id="rank"><b>🏆 ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "·"}</small></button>
@@ -141,6 +176,8 @@ function levelMap() {
     on(r, "#rank", () => ranking("daily", "world"));
     on(r, "#box", () => suggest(levelMap));
     on(r, "#hands", () => guide(levelMap));
+    on(r, "#shop", shop);
+    on(r, "#gift", () => { store.claimGift(); sfx.fanfare(); world.win(); levelMap(); });
     on(r, "#m-daily", () => modeInfo("daily"));
     on(r, "#m-time", () => modeInfo("time"));
     r.querySelectorAll<HTMLElement>(".tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); tab = b.dataset.d as Diff; levelMap(); }));
@@ -442,6 +479,8 @@ function results(o: Outcome) {
   }
 
   music.mood("menu");
+  const coins = coinsFor({ kind: o.kind, stars, wpm: sum.wpm, score, isBest });
+  store.addCoins(coins);
   const tiles: [Key, number, string][] = o.kind === "time"
     ? [["score", score, ""], ["wpm", sum.wpm, ""], ["acc", acc, "%"], ["phrases", sum.phrases, ""]]
     : [["wpm", sum.wpm, ""], ["acc", acc, "%"], ["errors", sum.errors, ""], ["time", Math.round(o.secs), "s"]];
@@ -454,6 +493,7 @@ function results(o: Outcome) {
       <div class="big-stars" aria-label="${stars}/3">${starHtml}</div>
       <p class="tag pop" style="animation-delay:1.5s">${tr(msg)}</p>
       <dl class="stats">${tiles.map(([k, n, suf]) => `<div><dt>${tr(k)}</dt><dd data-n="${n}" data-s="${suf}">0</dd></div>`).join("")}</dl>
+      <p class="good pop" style="animation-delay:1.55s">+${coins} 🪙 ${tr("coinsEarned")}</p>
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       ${streakMsg ? `<p class="good pop" style="animation-delay:1.6s">${streakMsg}</p>` : ""}
       <p class="hint" id="rankline" aria-live="polite"></p>
@@ -484,7 +524,7 @@ function results(o: Outcome) {
         if (res && line.isConnected) line.textContent = `🏆 ${[text(tr("world"), res.global), text(`${tr("room")} ${store.online.room}`, res.room)].filter(Boolean).join(" · ")}`;
       });
     }
-    on(r, "#map", () => { if (l) tab = l.diff; levelMap(); });
+    on(r, "#map", () => { if (l) tab = l.diff; world.mode("menu"); levelMap(); });
     on(r, "#retry", o.retry);
     on(r, "#next", () => { tab = nextLevel!.diff; info(nextLevel!); });
   });

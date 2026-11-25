@@ -36,6 +36,8 @@ const D = {
     guide: "Cómo colocar los dedos", guideOk: "¡Entendido!", help: "Ayuda de dedos",
     guideTips: "Pon los dedos índice sobre la F y la J (tienen una marquita). Los demás dedos descansan en A S D y K L Ñ, y los pulgares en la barra espaciadora. Cada dedo se encarga de sus teclas, y sube o baja desde su posición. Mira la pantalla, no el teclado.",
     guideHome: "Posición base",
+    shop: "Tienda", coins: "Monedas", giftDay: "Regalo del día", giftGot: "¡Regalo recibido!", buy: "Comprar", equip: "Poner", unequip: "Quitar",
+    notEnough: "Te faltan monedas", wearing: "Puesto", coinsEarned: "Monedas ganadas", shopHint: "Gana monedas jugando y cambia el look de Vectorcito.",
     msg1: "Casi. Intenta de nuevo.", msg2: "¡Muy bien!", msg3: "¡Perfecto!",
   },
   en: {
@@ -73,6 +75,8 @@ const D = {
     guide: "How to place your fingers", guideOk: "Got it!", help: "Finger help",
     guideTips: "Rest your index fingers on F and J (they have a small bump). The other fingers rest on A S D and K L ;, and your thumbs on the space bar. Each finger handles its own keys, moving up or down from its spot. Look at the screen, not the keyboard.",
     guideHome: "Home position",
+    shop: "Shop", coins: "Coins", giftDay: "Daily gift", giftGot: "Gift received!", buy: "Buy", equip: "Wear", unequip: "Remove",
+    notEnough: "Not enough coins", wearing: "Wearing", coinsEarned: "Coins earned", shopHint: "Earn coins by playing and change how Vectorcito looks.",
     msg1: "Almost. Try again.", msg2: "Nice work!", msg3: "Perfect!",
   },
 } as const;

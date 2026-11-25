@@ -139,3 +139,11 @@ textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
 .bar .ghost { margin-left: auto; margin-right: .6rem; padding: .25rem .6rem; } .ghost[aria-pressed="false"] { opacity: .5; }
 @media (max-width: 700px) { .play .kbd { display: none; } .kbd { font-size: .62rem; } }
 .play .kbd { background: rgb(5 4 41 / .82); padding: .6rem .8rem; border-radius: 8px; width: fit-content; }
+main.shop { gap: .6rem; }
+.shopbox { margin-top: auto; display: grid; gap: .8rem; max-height: 42vh; overflow-y: auto; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
+.slot { display: grid; gap: .4rem; } .slot h3 { font-size: .95rem; color: var(--suave); }
+.item { display: grid; grid-template-columns: 2rem 1fr auto auto; gap: .7rem; align-items: center; padding: .35rem .5rem; border-radius: 8px; border: 1px solid transparent; }
+.item.wearing { border-color: var(--neon); background: rgb(23 255 147 / .08); }
+.item .em { font-size: 1.4rem; } .item .pr { font-family: var(--mono); color: var(--estrella); font-size: .9rem; }
+.btn.small { font-size: .9rem; padding: .35rem .8rem; } .btn:disabled { opacity: .4; cursor: not-allowed; }
+.mode.gift { border-color: var(--estrella); box-shadow: 0 0 14px rgb(255 193 7 / .3); } .mode.gift b { color: var(--estrella); }

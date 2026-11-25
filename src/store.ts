@@ -1,6 +1,7 @@
 import { LEVELS, type Lang } from "./content";
 import { detectLang } from "./i18n";
 import { dateKey, nextStreak, prevKey } from "./modes";
+import { ITEMS, giftFor, type Slot } from "./cosmetics";
 
 export interface Best { stars: number; wpm: number; acc: number }
 export interface Run extends Best { id: number; ts: number; errors: number; secs: number; miss: Record<string, number> }
@@ -19,10 +20,14 @@ interface Data {
   online: Record<string, Online>;
   help: boolean;
   guideSeen: Record<string, boolean>;
+  coins: Record<string, number>;
+  owned: Record<string, string[]>;
+  worn: Record<string, Partial<Record<Slot, string>>>;
+  gift: Record<string, string>;
 }
 
 const KEY = "vectorcitos-run:v2";
-let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {}, help: true, guideSeen: {} };
+let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {}, help: true, guideSeen: {}, coins: {}, owned: {}, worn: {}, gift: {} };
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) data = { ...data, ...JSON.parse(raw) };
@@ -61,6 +66,34 @@ export const store = {
   /** Teclado con colores de dedos durante el juego. */
   get help() { return data.help; },
   set help(v: boolean) { data.help = v; save(); },
+  get coins() { return data.coins[data.current] ?? 0; },
+  addCoins(n: number) { data.coins[data.current] = this.coins + n; save(); },
+  owns(id: string) { return !!data.owned[data.current]?.includes(id); },
+  /** Compra un accesorio y lo deja puesto. false si no alcanzan las monedas. */
+  buy(id: string) {
+    const it = ITEMS.find((i) => i.id === id);
+    if (!it || this.owns(id) || this.coins < it.price) return false;
+    data.coins[data.current] = this.coins - it.price;
+    (data.owned[data.current] ??= []).push(id);
+    this.wear(it.slot, id);
+    return true;
+  },
+  get worn(): Partial<Record<Slot, string>> { return data.worn[data.current] ?? {}; },
+  wear(slot: Slot, id: string | null) {
+    const w = (data.worn[data.current] ??= {});
+    if (id && this.owns(id)) w[slot] = id; else delete w[slot];
+    save();
+  },
+  /** Regalo diario: una vez por día (UTC). Devuelve las monedas o 0 si ya se recogió. */
+  get giftReady() { return data.gift[data.current] !== dateKey(); },
+  get giftAmount() { return giftFor(this.dailyStreak); },
+  claimGift() {
+    if (!this.giftReady) return 0;
+    const n = this.giftAmount;
+    data.gift[data.current] = dateKey();
+    this.addCoins(n);
+    return n;
+  },
   get guideSeen() { return !!data.guideSeen[data.current]; },
   markGuide() { data.guideSeen[data.current] = true; save(); },
   get online(): Online {
