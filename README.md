@@ -44,7 +44,7 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 
 ## Ideas que vinieron del buzón
 - **Guía de dedos:** pantalla "Cómo colocar los dedos" (la primera vez y desde el mapa) y un teclado en el juego con el color de cada dedo y la próxima tecla resaltada (`src/keys.ts`). Se puede apagar con el botón ⌨️.
-- **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/scene.ts`.
+- **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/hero.ts`.
 - **Retar a un amigo:** al terminar un nivel o la contrarreloj, el botón 🤝 genera un enlace con tu marca (`#reto=...`). Quien lo abre juega lo mismo y ve quién ganó. No usa servidor.
 
 ## Buzón de sugerencias
@@ -82,7 +82,7 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 
 - **Más niveles o frases:** añade entradas **al final** de cada lista en `src/content.ts` (siempre `es` y `en`). El orden fija el número de nivel y el avance guardado de los jugadores. Hay 10 frases por dificultad y una pestaña de **Práctica** (fila central, superior, inferior, números, símbolos, acentos) que siempre está abierta.
 - **Otro idioma:** añade el código a `Lang` en `content.ts` y un bloque en `i18n.ts`.
-- **Modelo 3D propio del personaje:** guarda un archivo glTF/GLB como `public/models/vectorcito.glb`. Si existe, reemplaza al personaje básico. Para decorados, carga más modelos desde `src/scene.ts` con `GLTFLoader`.
+- **Otro modelo 3D del personaje:** reemplaza `public/models/vectorcito.glb` (ver «Personaje, ambiente y cosméticos»). Para decorados nuevos, añade modelos en `src/world.ts` con `GLTFLoader`.
 - **Música y sonidos propios:** pon tus archivos en `public/audio/` y reprodúcelos desde `src/audio.ts` (`new Audio("/audio/tema.mp3")`) en lugar de las notas generadas.
 
 ## Seguridad y datos
