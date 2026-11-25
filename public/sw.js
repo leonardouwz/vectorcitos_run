@@ -33,3 +33,20 @@ self.addEventListener("fetch", (e) => {
     })),
   );
 });
+
+// Avisos del reto diario (los envía /api/remind una vez al día).
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { /* sin datos */ }
+  e.waitUntil(self.registration.showNotification(d.title || "Vectorcitos Run", {
+    body: d.body || "", icon: "/icon-192.png", badge: "/icon-192.png", tag: "daily", renotify: false, data: { url: d.url || "/" },
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    const c = cs[0];
+    return c ? c.focus() : self.clients.openWindow(url);
+  }));
+});

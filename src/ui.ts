@@ -5,7 +5,8 @@ import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
 import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
-import { FINGER_COLORS, FINGER_NAMES, fingerKeys, highlightKey, keyboardHtml } from "./keys";
+import { highlightKey, keyboardHtml } from "./keys";
+import { disablePush, enablePush, pushState, syncPush, type PushState } from "./push";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { store } from "./store";
@@ -99,6 +100,7 @@ function renderInstall() {
 }
 
 export function home() {
+  music.mood("menu");
   world.theme("menu");
   world.mode("menu");
   show(`${toolbar()}
@@ -155,14 +157,13 @@ function profile() {
 }
 
 function guide(next: () => void) {
-  const names = FINGER_NAMES[store.lang], keys = fingerKeys(store.lang);
   show(`${toolbar()}
     <main class="wide">
       ${topbar(`${ic("hands")} ${tr("guide")}`, "", false)}
       <section class="panel">
         ${device.kind !== "desktop" ? `<p class="deviceTip">${ic(device.kind === "phone" ? "phone" : "kbd")} ${tr(device.kind === "phone" ? "guidePhone" : "guideTablet")}</p>` : ""}
         <figure class="hands"><img src="/brand/manos.webp" width="1200" height="672" alt="${esc(tr("guideImgAlt"))}" /><figcaption>${tr("guideCaption")}</figcaption></figure>
-        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i><span><b>${n}</b><small>${tr("keysOf")}: ${keys[i].join(" ")}</small></span></li>`).join("")}</ul>
+        <div class="guidekbd">${keyboardHtml(store.lang)}</div>
         <p class="tips">${tr("guideTips")}</p>
       </section>
       <button class="btn" id="ok" data-focus style="align-self:center">${tr("guideOk")}</button>
@@ -245,7 +246,7 @@ function levelMap() {
       <div class="modes">
         ${store.giftReady ? `<button class="mode gift" id="gift"><b>${ic("gift")} ${tr("giftDay")}</b><small>+${store.giftAmount} ${ic("coin")}</small></button>` : ""}
         <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coins}</small></button>
-        <button class="mode" id="m-daily"><b>${ic("daily")} ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
+        <button class="mode ${store.daily.days[dateKey()] ? "" : "attn"}" id="m-daily"><b>${ic("daily")} ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
         <button class="mode" id="m-time"><b>${ic("time")} ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
         <button class="mode" id="rank"><b>${ic("rank")} ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "&nbsp;"}</small></button>
         <button class="mode" id="prog"><b>${ic("progress")} ${tr("progress")}</b></button>
@@ -529,20 +530,58 @@ function playTime(vs?: Challenge) {
   });
 }
 
+const msToMidnight = () => { const n = new Date(); return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1) - n.getTime(); };
+const clock = (ms: number) => { const m = Math.floor(ms / 60000); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+
+function dailyHero() {
+  const done = store.daily.days[dateKey()], streak = store.dailyStreak;
+  const week = Array.from({ length: 7 }, (_, i) => dateKey(new Date(Date.now() - (6 - i) * 864e5)));
+  const dow = (k: string) => new Date(`${k}T12:00:00Z`).toLocaleDateString(store.lang, { weekday: "narrow", timeZone: "UTC" });
+  const danger = !done && streak > 0;
+  return `<div class="dailyhero ${done ? "isdone" : danger ? "danger" : ""}">
+    <div class="flame" aria-hidden="true">${ic("fire")}</div>
+    <div class="bignum"><span id="streaknum" data-to="${streak}">0</span><small>${tr("dayStreak")}</small></div>
+    <div class="week" aria-label="${tr("weekTitle")}">${week.map((k, i) => `<span class="${store.daily.days[k] ? "on" : ""} ${k === dateKey() ? "today" : ""}" style="--i:${i}"><i>${store.daily.days[k] ? "✓" : ""}</i><small>${dow(k)}</small></span>`).join("")}</div>
+    <p class="${done ? "good" : danger ? "warn" : "hint"}">${done ? `${tr("doneBig")} (${done.wpm} ${tr("wpmShort")})` : danger ? tr("danger") : tr("daily1")}</p>
+    <p class="hint">${tr("timeLeft")} <b id="left">${clock(msToMidnight())}</b></p>
+  </div>`;
+}
+
 function modeInfo(kind: "daily" | "time") {
-  const done = store.daily.days[dateKey()];
   show(`${toolbar()}
     <main class="center">
       <h2>${kind === "daily" ? `${ic("daily")} ${tr("daily")}` : `${ic("time")} ${tr("timeAttack")}`}</h2>
       <p class="tag">${tr(kind === "daily" ? "dailyDesc" : "timeDesc")}</p>
-      <p class="hint">${kind === "daily"
-        ? `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}${done ? ` · ✓ ${tr("doneToday")} (${done.wpm} ${tr("wpmShort")})` : ""}`
-        : `${tr("bestScore")}: ${store.bestTime || "–"}`}</p>
+      ${kind === "daily" ? dailyHero() : `<p class="hint">${tr("bestScore")}: ${store.bestTime || "–"}</p>`}
+      ${kind === "daily" ? `<div id="remindbox" class="remind"></div>` : ""}
       <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => modeInfo(kind));
     on(r, "#back", levelMap);
     on(r, "#go", kind === "daily" ? playDaily : () => playTime());
+    if (kind === "daily") {
+      const num = r.querySelector<HTMLElement>("#streaknum");
+      if (num) countUp(num, Number(num.dataset.to));
+      const left = r.querySelector<HTMLElement>("#left");
+      const t = window.setInterval(() => { if (left?.isConnected) left.textContent = clock(msToMidnight()); else clearInterval(t); }, 30000);
+      void renderRemind(r.querySelector<HTMLElement>("#remindbox")!);
+    }
+  });
+}
+
+const pushStatus = () => ({ lang: store.lang, last: store.daily.last, streak: store.dailyStreak });
+async function renderRemind(box: HTMLElement) {
+  const st: PushState = await pushState();
+  if (!box.isConnected) return;
+  const msg: Partial<Record<PushState, string>> = { unsupported: tr("remindUnsupported"), needsInstall: tr("remindInstall"), blocked: tr("remindBlocked") };
+  if (msg[st]) { box.innerHTML = `<p class="hint">🔔 ${msg[st]}</p>`; return; }
+  box.innerHTML = st === "on"
+    ? `<button class="btn ghost-b-b" id="rm">🔔 ${tr("remindOn")}</button>`
+    : `<button class="btn ghost-b" id="rm">🔔 ${tr("remind")}</button><p class="hint">${tr("remindHelp")}</p>`;
+  on(box, "#rm", async () => {
+    sfx.click();
+    if (st === "on") await disablePush(); else await enablePush(pushStatus());
+    void renderRemind(box);
   });
 }
 
@@ -582,13 +621,14 @@ function results(o: Outcome) {
   } else if (o.kind === "daily") {
     store.recordDaily(dateKey(), { stars, wpm: sum.wpm, acc });
     streakMsg = `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`;
+    void syncPush(pushStatus());
     store.addRun({ id: DAILY_ID, ...run });
   } else {
     isBest = store.recordTime(score);
     store.addRun({ id: TIME_ID, ...run });
   }
 
-  music.mood("menu");
+  // la música del nivel sigue sonando en los resultados
   // Comparación con el amigo que envió el reto (si lo hay)
   const mine = compareScore(o.kind === "time" ? "time" : "level", sum.wpm, acc, score);
   const duel = o.vs ? fmt(tr(verdict(mine, o.vs.score) === "win" ? "youWin" : verdict(mine, o.vs.score) === "lose" ? "youLose" : "youTie"), { nick: o.vs.nick, a: mine, b: o.vs.score }) : "";
