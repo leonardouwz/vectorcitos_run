@@ -1,6 +1,6 @@
-// Genera src/icons.ts con los emojis que usa el juego, del paquete Fluent Emoji (Microsoft, licencia MIT).
+// Genera src/icon-data.ts con los emojis que usa el juego, del paquete Fluent Emoji (Microsoft, licencia MIT).
 // Uso: node scripts/make-icons.mjs
-// Para cambiar de paquete o poner iconos propios: edita NAMES (o reemplaza el SVG de una entrada en src/icons.ts).
+// Para cambiar de paquete o poner iconos propios: edita NAMES (o reemplaza el SVG de una entrada en src/icon-data.ts).
 import { readFileSync, writeFileSync } from "node:fs";
 
 const SET = "node_modules/@iconify-json/fluent-emoji/icons.json";
@@ -10,6 +10,8 @@ const NAMES = {
   kbd: "keyboard", shop: "shopping-bags", gift: "wrapped-gift", coin: "coin", challenge: "handshake", win: "party-popper",
   party: "partying-face", tophat: "top-hat", crown: "crown", glasses: "glasses", shades: "smiling-face-with-sunglasses",
   bow: "ribbon", cape: "person-superhero", sound: "speaker-high-volume", mute: "muted-speaker", phone: "mobile-phone",
+  wizard: "crystal-ball", halo: "baby-angel", headphones: "headphone", visor: "goggles", monocle: "face-with-monocle", scarf: "scarf",
+  wings: "dove", skin: "artist-palette", sparks: "sparkles", rainbow: "rainbow", hearts: "sparkling-heart", music: "musical-note", gem: "gem-stone",
 };
 
 const set = JSON.parse(readFileSync(SET, "utf8"));
@@ -25,13 +27,10 @@ for (const [name, icon] of Object.entries(NAMES)) {
   out[name] = body.replace(/(\d+\.\d)\d+/g, "$1");
 }
 const ts = `// Generado por scripts/make-icons.mjs a partir de Fluent Emoji (Microsoft, MIT). No editar a mano: cambia el script.
-const BODY: Record<string, string> = ${JSON.stringify(out, null, 1)};
+// Se carga aparte (ver src/icons.ts) porque es la parte más pesada del juego.
+export const BODY: Record<string, string> = ${JSON.stringify(out, null, 1)};
 
 export type IconName = ${Object.keys(NAMES).map((n) => `"${n}"`).join(" | ")};
-
-/** Icono en SVG para insertar en el HTML. Es decorativo: el texto que lo acompaña dice lo mismo. */
-export const ic = (name: IconName) =>
-  \`<svg class="ic" viewBox="0 0 32 32" aria-hidden="true" focusable="false">\${BODY[name]}</svg>\`;
 `;
-writeFileSync("src/icons.ts", ts);
-console.log(`src/icons.ts: ${Object.keys(out).length} iconos, ${(ts.length / 1024).toFixed(1)} kB`);
+writeFileSync("src/icon-data.ts", ts);
+console.log(`src/icon-data.ts: ${Object.keys(out).length} iconos, ${(ts.length / 1024).toFixed(1)} kB`);

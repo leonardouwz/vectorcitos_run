@@ -187,3 +187,4 @@ html[data-kind="phone"] .stats dd { font-size: 1.4rem; }
 .tips { font: 400 1.02rem/1.65 var(--sans); margin: 0; max-width: 70ch; }
 html[data-kind="phone"] .streak .lbl { display: none; }
 html[data-kind="phone"] .bar h3 { font-size: 1rem; }
+#kbdbox { margin-top: auto; display: grid; justify-items: center; }

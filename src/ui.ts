@@ -301,6 +301,7 @@ interface RunCfg {
 function run(cfg: RunCfg) {
   world.theme(cfg.diff);
   world.mode("play");
+  world.layout(store.help && physicalKeys());
   music.mood(cfg.diff);
   show(`<main class="play">
       <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span>${physicalKeys() ? `<button class="ghost" id="helpbtn" aria-pressed="${store.help}" aria-label="${tr("help")}" title="${tr("help")}">${ic("kbd")}</button>` : ""}<span class="clock" id="clock">${cfg.limit ?? 0}s</span><button class="ghost exit" id="exitbtn" aria-label="${tr("exitGame")}" title="${tr("exitGame")}">✕</button></header>
@@ -384,6 +385,7 @@ function run(cfg: RunCfg) {
       store.help = !store.help;
       helpBtn.setAttribute("aria-pressed", String(store.help));
       kbdbox.innerHTML = store.help ? keyboardHtml(store.lang) : "";
+      world.layout(store.help);
       highlightKey(kbdbox, cur.current, store.lang);
       focus();
     });
