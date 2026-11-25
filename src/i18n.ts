@@ -33,6 +33,9 @@ const D = {
     you: "Tú", forgetBtn: "Borrar mis marcas del ranking", forgotten: "Listo, se borraron tus marcas.",
     rankPrivacy: "Si lo activas, tu apodo y tus puntos del reto diario y la contrarreloj serán visibles para todo el mundo. No guardamos nada más. Puedes desactivarlo o borrar tus marcas cuando quieras.",
     place: "Puesto", of: "de", world: "Mundial", room: "Sala",
+    guide: "Cómo colocar los dedos", guideOk: "¡Entendido!", help: "Ayuda de dedos",
+    guideTips: "Pon los dedos índice sobre la F y la J (tienen una marquita). Los demás dedos descansan en A S D y K L Ñ, y los pulgares en la barra espaciadora. Cada dedo se encarga de sus teclas, y sube o baja desde su posición. Mira la pantalla, no el teclado.",
+    guideHome: "Posición base",
     msg1: "Casi. Intenta de nuevo.", msg2: "¡Muy bien!", msg3: "¡Perfecto!",
   },
   en: {
@@ -67,6 +70,9 @@ const D = {
     you: "You", forgetBtn: "Delete my ranking scores", forgotten: "Done, your scores were deleted.",
     rankPrivacy: "If you turn it on, your nickname and your points from the daily challenge and time attack will be visible to everyone. We store nothing else. You can turn it off or delete your scores at any time.",
     place: "Place", of: "of", world: "Worldwide", room: "Room",
+    guide: "How to place your fingers", guideOk: "Got it!", help: "Finger help",
+    guideTips: "Rest your index fingers on F and J (they have a small bump). The other fingers rest on A S D and K L ;, and your thumbs on the space bar. Each finger handles its own keys, moving up or down from its spot. Look at the screen, not the keyboard.",
+    guideHome: "Home position",
     msg1: "Almost. Try again.", msg2: "Nice work!", msg3: "Perfect!",
   },
 } as const;

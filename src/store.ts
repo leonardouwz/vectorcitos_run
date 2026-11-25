@@ -17,10 +17,12 @@ interface Data {
   time: Record<string, number>;
   daily: Record<string, Daily>;
   online: Record<string, Online>;
+  help: boolean;
+  guideSeen: Record<string, boolean>;
 }
 
 const KEY = "vectorcitos-run:v2";
-let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {} };
+let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {}, help: true, guideSeen: {} };
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) data = { ...data, ...JSON.parse(raw) };
@@ -56,6 +58,11 @@ export const store = {
     return better;
   },
   /** Ajustes del ranking en línea. El código privado (pid) nunca sale del dispositivo, salvo para firmar las marcas. */
+  /** Teclado con colores de dedos durante el juego. */
+  get help() { return data.help; },
+  set help(v: boolean) { data.help = v; save(); },
+  get guideSeen() { return !!data.guideSeen[data.current]; },
+  markGuide() { data.guideSeen[data.current] = true; save(); },
   get online(): Online {
     let o = data.online[data.current];
     if (!o) { o = data.online[data.current] = { pid: crypto.randomUUID(), on: false, room: "" }; save(); }

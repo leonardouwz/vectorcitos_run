@@ -1,6 +1,7 @@
 import { DIFFS, LEVELS, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
+import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { store } from "./store";
@@ -81,7 +82,7 @@ function profile() {
       <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, profile);
-    const go = (n: string) => { store.login(n); levelMap(); };
+    const go = (n: string) => { store.login(n); if (store.guideSeen) levelMap(); else guide(levelMap); };
     on(r, "#resume", () => go(store.current));
     on(r, "#back", home);
     r.querySelectorAll<HTMLElement>(".chip").forEach((c) => c.addEventListener("click", () => { sfx.click(); go(c.dataset.n!); }));
@@ -90,6 +91,24 @@ function profile() {
       const n = (r.querySelector("#name") as HTMLInputElement).value.trim().slice(0, 16);
       if (n) { sfx.click(); go(n); }
     });
+  });
+}
+
+function guide(next: () => void) {
+  const names = FINGER_NAMES[store.lang];
+  show(`${toolbar()}
+    <main class="wide">
+      <header class="bar"><h2>🖐️ ${tr("guide")}</h2></header>
+      <section class="panel">
+        ${keyboardHtml(store.lang)}
+        <p class="tag" style="max-width:none">${tr("guideTips")}</p>
+        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i>${n}</li>`).join("")}</ul>
+      </section>
+      <button class="btn" id="ok" data-focus style="align-self:center">${tr("guideOk")}</button>
+    </main>`, (r) => {
+    wireToolbar(r, () => guide(next));
+    r.querySelectorAll(".k.home").forEach((k) => k.classList.add("next")); // F y J, para que se vea dónde van los índices
+    on(r, "#ok", () => { store.markGuide(); next(); });
   });
 }
 
@@ -105,6 +124,7 @@ function levelMap() {
         <button class="mode" id="m-time"><b>⏱️ ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
         <button class="mode" id="rank"><b>🏆 ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "·"}</small></button>
         <button class="mode" id="prog"><b>📈 ${tr("progress")}</b></button>
+        <button class="mode" id="hands"><b>🖐️ ${tr("guide")}</b></button>
         <button class="mode" id="box"><b>💌 ${tr("box")}</b></button>
       </div>
       <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
@@ -120,6 +140,7 @@ function levelMap() {
     on(r, "#prog", progress);
     on(r, "#rank", () => ranking("daily", "world"));
     on(r, "#box", () => suggest(levelMap));
+    on(r, "#hands", () => guide(levelMap));
     on(r, "#m-daily", () => modeInfo("daily"));
     on(r, "#m-time", () => modeInfo("time"));
     r.querySelectorAll<HTMLElement>(".tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); tab = b.dataset.d as Diff; levelMap(); }));
@@ -211,15 +232,17 @@ function run(cfg: RunCfg) {
   world.mode("play");
   music.mood(cfg.diff);
   show(`<main class="play">
-      <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span><span class="clock" id="clock">${cfg.limit ?? 0}s</span></header>
+      <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span><button class="ghost" id="helpbtn" aria-pressed="${store.help}" aria-label="${tr("help")}" title="${tr("help")}">⌨️</button><span class="clock" id="clock">${cfg.limit ?? 0}s</span></header>
       <div class="phrase idle" id="phrase"><div id="text"></div><span class="tap" id="tap">${tr("tapHint")}</span><span class="cd" id="cd" aria-live="assertive"></span></div>
       <div class="meter" aria-hidden="true"><i id="meter"></i></div>
       <p class="hint" id="count"></p>
+      <div id="kbdbox">${store.help ? keyboardHtml(store.lang) : ""}</div>
       <input id="in" class="ghost-input" aria-label="${tr("typeHint")}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
     </main>`, (r) => {
     const $ = <T extends HTMLElement>(id: string) => r.querySelector<T>(`#${id}`)!;
     const phrase = $("phrase"), input = $<HTMLInputElement>("in"), clock = $("clock"), count = $("count");
     const meter = $("meter"), streakEl = $("streak"), textEl = $("text"), cd = $("cd");
+    const kbdbox = $("kbdbox");
     const rounds: Round[] = [];
     let cur!: Round;
     let chars: HTMLElement[] = [];
@@ -235,6 +258,7 @@ function run(cfg: RunCfg) {
       chars = [...textEl.querySelectorAll<HTMLElement>(".ch")];
       chars[0].classList.add("now");
       phrase.setAttribute("aria-label", text);
+      highlightKey(kbdbox, cur.current, store.lang);
     };
     load(cfg.next()!);
 
@@ -283,6 +307,14 @@ function run(cfg: RunCfg) {
     r.addEventListener("pointerdown", focus);
     cleanup = () => { leaving = true; timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); removeEventListener("keydown", onKey); };
 
+    const helpBtn = $("helpbtn");
+    helpBtn.addEventListener("click", () => {
+      store.help = !store.help;
+      helpBtn.setAttribute("aria-pressed", String(store.help));
+      kbdbox.innerHTML = store.help ? keyboardHtml(store.lang) : "";
+      highlightKey(kbdbox, cur.current, store.lang);
+      focus();
+    });
     input.addEventListener("focus", () => phrase.classList.remove("idle"));
     input.addEventListener("blur", () => { phrase.classList.add("idle"); if (!leaving && !over) setTimeout(focus, 50); });
     focus();
@@ -301,6 +333,7 @@ function run(cfg: RunCfg) {
         chars[before].classList.remove("now");
         chars[before].classList.add("done");
         chars[cur.pos]?.classList.add("now");
+        highlightKey(kbdbox, cur.current, store.lang);
         sfx.key(streak); world.key();
         if (hit === "word" || hit === "done") { sfx.word(); world.word(); }
         if (hit === "done") {
