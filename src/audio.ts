@@ -142,6 +142,7 @@ export const music = {
   start() { ensure(); if (!playing) begin(); },
   stop() { playing = false; clearInterval(musicTimer); musicTimer = 0; stopFile(); },
   mood(name: Mood) {
+    if (name === want) return; // misma música: que siga sonando sin cortes
     want = name; mood = MOODS[name];
     if (playing) { stopFile(); begin(); }
   },
