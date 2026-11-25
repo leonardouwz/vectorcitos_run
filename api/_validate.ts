@@ -1,7 +1,7 @@
 export const CATEGORIES = ["idea", "bug", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-export interface Suggestion { category: Category; message: string; alias: string; lang: "es" | "en"; ts: string }
+export interface Suggestion { category: Category; message: string; alias: string; lang: "es" | "en"; device: string; ts: string }
 
 // Quita caracteres de control (menos salto de línea) y recorta espacios.
 const clean = (s: string) => s.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").trim();
@@ -19,5 +19,7 @@ export function validate(body: unknown): Checked {
   if (!category) return { ok: false, error: "invalid" };
   const alias = typeof b.alias === "string" ? clean(b.alias).slice(0, 40) : "";
   const lang = b.lang === "en" ? "en" : "es";
-  return { ok: true, value: { category, message, alias, lang } };
+  // Desde dónde se jugó, p. ej. "phone/ios": solo letras, números, "/" y "-".
+  const device = typeof b.device === "string" ? b.device.replace(/[^a-z0-9/-]/gi, "").slice(0, 24) : "";
+  return { ok: true, value: { category, message, alias, lang, device } };
 }

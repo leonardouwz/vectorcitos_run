@@ -26,6 +26,15 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Contrarreloj:** 60 segundos, frases sin fin. Cada letra acertada suma 10 puntos y cada error resta 5.
 - Todas empiezan con cuenta regresiva (3, 2, 1, ¡YA!).
 
+## Móvil, tablet y app instalable
+- **Detecta desde dónde se juega** (`src/device.ts`): teléfono, tablet o computador, sistema (iOS, Android, Windows, Mac, Linux) y si ya está instalado como app. El resultado queda en `<html data-kind data-touch data-os>` y el CSS se adapta.
+- **Escritura táctil:** el teclado de pantalla se abre al tocar la frase. En pantalla táctil las letras se leen a medida que llegan (los teclados de teléfono mantienen la palabra "en composición"), y los errores hacen vibrar en Android.
+- **Teclado de colores:** solo se muestra si se escribe con teclado físico (en tablets se activa al detectar una tecla física). La guía de dedos explica qué hacer en teléfono y en tablet.
+- **Salir:** botón ✕ en el juego (en celular no hay tecla Esc). En horizontal, los teléfonos reciben un aviso para girar la pantalla.
+- **App instalable (PWA):** `public/manifest.webmanifest` y `public/sw.js` (abre sin conexión; nunca guarda `/api/`). Chrome/Edge ofrecen "Instalar la app"; en iPhone y iPad se explica cómo con Compartir → Añadir a pantalla de inicio.
+- **Iconos y vista previa:** icono provisional de Vectorcito (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, iconos 192/512 y adaptable) y `og-image.jpg` para WhatsApp, Telegram, X, Facebook, Discord... Se regeneran con `node scripts/make-assets.mjs` (necesita Playwright). Los datos de la página están en `index.html`; si cambia la dirección del sitio, hay que actualizar sus enlaces absolutos (`og:url`, `og:image`, `canonical`).
+- **Emojis:** los iconos del juego son de Fluent Emoji (Microsoft). `src/icons.ts` se genera con `node scripts/make-icons.mjs`; para cambiar de paquete o poner iconos propios basta editar ese script o los SVG de `src/icons.ts`.
+
 ## Ideas que vinieron del buzón
 - **Guía de dedos:** pantalla "Cómo colocar los dedos" (la primera vez y desde el mapa) y un teclado en el juego con el color de cada dedo y la próxima tecla resaltada (`src/keys.ts`). Se puede apagar con el botón ⌨️.
 - **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/scene.ts`.
@@ -69,6 +78,11 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 
 ## Seguridad y datos
 Esta versión **no guarda contraseñas ni credenciales**. La versión original (2024, proyecto universitario) usaba una base de datos con una clave escrita en el código. Esa clave sigue visible en el historial de git: si alguna vez se usó en un servidor real, **cámbiala**.
+
+## Créditos de terceros
+- **Fluent Emoji** © Microsoft, licencia MIT (iconos del juego).
+- **Three.js** (MIT), **Syne Mono** e **Inter** vía Fontsource (SIL Open Font License).
+- Los emojis de Apple no se incluyen: son propiedad de Apple y no se pueden redistribuir. En iPhone y iPad los emojis del sistema ya se ven con su estilo.
 
 ## Créditos
 Proyecto original de Universidad La Salle (Ingeniería de Software, 2024B). Integrantes: Piero Fabricio Poblete Andía, Katherine Naomi Saico Ccahuana, Allison Mayra Usedo Quispe, Leonardo Raphael Pachari Gomez y Nicolle Andrea Lozano Vega. Docente: Richart Smith Escobedo Quispe.

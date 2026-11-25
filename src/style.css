@@ -8,7 +8,7 @@
 html, body { height: 100%; margin: 0; }
 body { background: var(--noche); color: var(--hielo); font: 400 1rem/1.5 var(--sans); overflow: hidden; }
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-#app { position: fixed; inset: 0; overflow-y: auto; }
+#app { position: fixed; left: 0; right: 0; top: var(--vt, 0px); height: var(--vh, 100%); overflow-y: auto; overscroll-behavior: contain; }
 .screen { min-height: 100%; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 .toolbar { display: flex; gap: .5rem; justify-content: flex-end; }
 main { flex: 1; display: flex; flex-direction: column; gap: 1.2rem; }
@@ -53,7 +53,7 @@ h3 { color: var(--neon); font-size: clamp(1rem, 3vw, 1.4rem); letter-spacing: .0
 .lvl i { font-style: normal; font-size: 2.4rem; line-height: 1; }
 .lvl.open { background: var(--neon); color: var(--noche); transition: transform .15s; }
 .lvl.open:hover { transform: translateY(-3px); }
-.lvl.closed { background: var(--hielo); color: var(--noche); opacity: .5; cursor: not-allowed; }
+.lvl.closed { background: #6f6f93; color: #0b0b2e; cursor: not-allowed; }
 .st { color: #b07d00; letter-spacing: .1em; min-height: 1.2em; } .off { opacity: .25; }
 .quote { font: 400 clamp(1.1rem, 3.5vw, 1.8rem)/1.5 var(--mono); max-width: 30ch; margin: 0; padding: 1rem 1.2rem; background: rgb(10 10 53 / .85); border-left: 3px solid var(--neon); border-radius: 0 6px 6px 0; text-align: left; }
 .phrase { position: relative; font: 400 clamp(1.3rem, 4.5vw, 2.4rem)/1.7 var(--mono); white-space: pre-wrap; background: rgb(10 10 53 / .85); border: 1px solid var(--linea); border-radius: 8px; padding: 1.2rem 1.4rem; overflow-wrap: anywhere; cursor: text; }
@@ -137,7 +137,7 @@ textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .4rem .8rem; }
 .legend li { display: flex; gap: .5rem; align-items: center; font-size: .9rem; } .legend i { width: .9rem; height: .9rem; border-radius: 3px; display: inline-block; }
 .bar .ghost { margin-left: auto; margin-right: .6rem; padding: .25rem .6rem; } .ghost[aria-pressed="false"] { opacity: .5; }
-@media (max-width: 700px) { .play .kbd { display: none; } .kbd { font-size: .62rem; } }
+@media (max-width: 700px) { .kbd { font-size: .62rem; } }
 .play .kbd { background: rgb(5 4 41 / .82); padding: .6rem .8rem; border-radius: 8px; width: fit-content; }
 main.shop { gap: .6rem; }
 .shopbox { margin-top: auto; display: grid; gap: .8rem; max-height: 42vh; overflow-y: auto; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
@@ -149,3 +149,41 @@ main.shop { gap: .6rem; }
 .mode.gift { border-color: var(--estrella); box-shadow: 0 0 14px rgb(255 193 7 / .3); } .mode.gift b { color: var(--estrella); }
 .banner { background: rgb(10 10 53 / .92); border: 1px solid var(--estrella); border-radius: 8px; padding: .7rem 1rem; font-family: var(--mono); max-width: 34rem; }
 .duel { font-family: var(--mono); font-size: 1.1rem; color: var(--ahora); margin: 0; }
+.ic { width: 1.2em; height: 1.2em; vertical-align: -.22em; flex: none; }
+h2 .ic { width: 1em; height: 1em; vertical-align: -.12em; }
+.mode b .ic, .lvl i .ic { vertical-align: -.2em; }
+.lvl i .ic { width: 2.4rem; height: 2.4rem; display: block; margin: 0 auto; }
+.lvl.closed i .ic { filter: grayscale(.4); }
+.item .em .ic { width: 1.7rem; height: 1.7rem; }
+.ghost .ic { width: 1.3em; height: 1.3em; }
+.big-stars .ic { width: 1em; height: 1em; }
+
+/* Móvil y tablet */
+body { overscroll-behavior: none; touch-action: manipulation; }
+html[data-touch="true"] { -webkit-tap-highlight-color: transparent; }
+html[data-touch="true"] :is(.btn, .ghost, .tab, .mode, .chip, .lvl, .item .btn) { min-height: 46px; }
+.phrase, .cd, .tap, .lvl, .mode { -webkit-user-select: none; user-select: none; }
+.ghost.exit { margin-left: 0; margin-right: .6rem; font-size: 1.1rem; }
+.deviceTip { display: flex; gap: .6rem; align-items: center; margin: 0; padding: .6rem .8rem; border: 1px solid var(--estrella); border-radius: 8px; background: rgb(255 193 7 / .08); }
+.installslot { display: grid; gap: .4rem; justify-items: center; }
+.rotate { display: none; position: fixed; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; background: rgb(5 4 41 / .92); border: 1px solid var(--estrella); border-radius: 999px; padding: .35rem .9rem; font-size: .85rem; white-space: nowrap; }
+html[data-kind="phone"] .phrase { font-size: clamp(1.25rem, 5.6vw, 1.75rem); padding: .9rem 1rem; line-height: 1.6; }
+html[data-kind="phone"] .logo { font-size: clamp(2.2rem, 13vw, 4rem); }
+html[data-kind="tablet"] .phrase { font-size: clamp(1.8rem, 3.6vw, 2.8rem); padding: 1.4rem 1.6rem; }
+html[data-kind="tablet"] main.wide, html[data-kind="tablet"] main.play { width: min(1100px, 100%); }
+html[data-kind="phone"] .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: .6rem; }
+html[data-kind="phone"] .modes { grid-template-columns: 1fr 1fr; }
+html[data-kind="phone"] .bar h2 { font-size: 1.3rem; }
+html[data-kind="phone"] .stats dd { font-size: 1.4rem; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .screen { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  main.play { gap: .5rem; padding-top: 0; }
+  .play .hint, .play .meter, .play .kbd { display: none; }
+  .phrase { font-size: 1.1rem !important; padding: .6rem .9rem !important; }
+  .bar { padding: .3rem .7rem; } .bar h3 { font-size: .9rem; }
+  html[data-kind="phone"] .rotate { display: block; }
+  main.center { padding: .8rem 1.2rem; gap: .6rem; } .big-stars { font-size: 2rem; } .stats dd { font-size: 1.2rem; }
+}
+.tips { font: 400 1.02rem/1.65 var(--sans); margin: 0; max-width: 70ch; }
+html[data-kind="phone"] .streak .lbl { display: none; }
+html[data-kind="phone"] .bar h3 { font-size: 1rem; }
