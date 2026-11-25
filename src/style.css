@@ -216,3 +216,9 @@ html[data-kind="phone"] .bar h3 { font-size: 1rem; }
 html[data-kind="phone"] .cards { grid-template-columns: repeat(3, 1fr); }
 html[data-kind="phone"] .card { padding: .5rem .25rem; font-size: .8rem; }
 html[data-kind="phone"] .top { padding: .45rem .6rem; gap: .5rem; }
+/* Guía de dedos con foto */
+.hands { margin: 0; display: grid; gap: .5rem; }
+.hands img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--linea); box-shadow: 0 0 30px rgb(23 255 147 / .12); }
+.hands figcaption { color: var(--suave); font-size: .92rem; text-align: center; }
+.legend li { align-items: flex-start; } .legend li > span { display: grid; line-height: 1.25; } .legend li small { color: var(--suave); font-family: var(--mono); letter-spacing: .06em; }
+.legend i { margin-top: .2rem; width: 1.1rem; height: 1.1rem; flex: none; }

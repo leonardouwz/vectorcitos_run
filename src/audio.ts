@@ -91,12 +91,62 @@ function beat() {
   }
 }
 
+// Música real (public/audio/*.mp3, generada con IA): bucle con fundido entre pistas.
+// Si un archivo no carga, suena el arpegio generado de arriba.
+const tracks: Partial<Record<Mood, AudioBuffer>> = {};
+const loading: Partial<Record<Mood, Promise<void>>> = {};
+let cur: { src: AudioBufferSourceNode; g: GainNode } | null = null;
+let want: Mood = "menu";
+let playing = false;
+const MUSIC_VOL = 0.55;
+
+function load(name: Mood) {
+  return (loading[name] ??= fetch(`/audio/${name}.mp3`)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+    .then((b) => ensure().decodeAudioData(b))
+    .then((buf) => { tracks[name] = buf; })
+    .catch(() => { delete loading[name]; }));
+}
+
+function fadeTo(name: Mood) {
+  const c = ensure(), buf = tracks[name];
+  if (!buf) return false;
+  const t = c.currentTime;
+  if (cur) { cur.g.gain.cancelScheduledValues(t); cur.g.gain.setValueAtTime(cur.g.gain.value, t); cur.g.gain.linearRampToValueAtTime(0, t + 1.2); const old = cur.src; setTimeout(() => old.stop(), 1400); }
+  const src = c.createBufferSource(), g = c.createGain();
+  src.buffer = buf; src.loop = true;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(muted || !musicOn ? 0 : MUSIC_VOL, t + 1.2);
+  src.connect(g).connect(master); src.start();
+  cur = { src, g };
+  return true;
+}
+
+function stopFile() {
+  if (!cur) return;
+  const { src, g } = cur; cur = null;
+  g.gain.setTargetAtTime(0, ensure().currentTime, 0.15);
+  setTimeout(() => src.stop(), 800);
+}
+
+function begin() {
+  playing = true;
+  const name = want;
+  void load(name).then(() => {
+    if (!playing || want !== name) return;
+    if (tracks[name]) { if (musicTimer) { clearInterval(musicTimer); musicTimer = 0; } fadeTo(name); }
+  });
+  if (!tracks[name] && !musicTimer) musicTimer = window.setInterval(beat, mood.ms); // mientras carga
+}
+
 export const music = {
-  start() { if (!musicTimer) { ensure(); musicTimer = window.setInterval(beat, mood.ms); } },
-  stop() { clearInterval(musicTimer); musicTimer = 0; },
-  mood(name: Mood) { mood = MOODS[name]; if (musicTimer) { this.stop(); this.start(); } },
+  start() { ensure(); if (!playing) begin(); },
+  stop() { playing = false; clearInterval(musicTimer); musicTimer = 0; stopFile(); },
+  mood(name: Mood) {
+    want = name; mood = MOODS[name];
+    if (playing) { stopFile(); begin(); }
+  },
 };
 
-export function setMuted(m: boolean) { muted = m; }
-export function setMusicOn(on: boolean) { musicOn = on; }
+export function setMuted(m: boolean) { muted = m; if (cur) cur.g.gain.value = m || !musicOn ? 0 : MUSIC_VOL; }
+export function setMusicOn(on: boolean) { musicOn = on; if (cur) cur.g.gain.value = muted || !on ? 0 : MUSIC_VOL; }
 export const unlockAudio = () => { ensure(); };

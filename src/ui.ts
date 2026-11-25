@@ -5,7 +5,7 @@ import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
 import { ITEMS, SLOTS, SLOT_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
-import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
+import { FINGER_COLORS, FINGER_NAMES, fingerKeys, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { store } from "./store";
@@ -155,20 +155,19 @@ function profile() {
 }
 
 function guide(next: () => void) {
-  const names = FINGER_NAMES[store.lang];
+  const names = FINGER_NAMES[store.lang], keys = fingerKeys(store.lang);
   show(`${toolbar()}
     <main class="wide">
       ${topbar(`${ic("hands")} ${tr("guide")}`, "", false)}
       <section class="panel">
         ${device.kind !== "desktop" ? `<p class="deviceTip">${ic(device.kind === "phone" ? "phone" : "kbd")} ${tr(device.kind === "phone" ? "guidePhone" : "guideTablet")}</p>` : ""}
-        ${keyboardHtml(store.lang)}
+        <figure class="hands"><img src="/brand/manos.webp" width="1200" height="672" alt="${esc(tr("guideImgAlt"))}" /><figcaption>${tr("guideCaption")}</figcaption></figure>
+        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i><span><b>${n}</b><small>${tr("keysOf")}: ${keys[i].join(" ")}</small></span></li>`).join("")}</ul>
         <p class="tips">${tr("guideTips")}</p>
-        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i>${n}</li>`).join("")}</ul>
       </section>
       <button class="btn" id="ok" data-focus style="align-self:center">${tr("guideOk")}</button>
     </main>`, (r) => {
     wireToolbar(r, () => guide(next));
-    r.querySelectorAll(".k.home").forEach((k) => k.classList.add("next")); // F y J, para que se vea dónde van los índices
     on(r, "#ok", () => { store.markGuide(); next(); });
   });
 }

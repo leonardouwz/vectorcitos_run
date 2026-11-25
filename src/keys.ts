@@ -40,6 +40,14 @@ export function locate(ch: string, lang: Lang): Loc | null {
 
 const stripAccent = (c: string) => (c === "ñ" ? c : c.normalize("NFD").replace(/[̀-ͯ]/g, ""));
 
+/** Qué teclas toca cada dedo (según la distribución del idioma), para la guía de dedos. */
+export function fingerKeys(lang: Lang): string[][] {
+  const out: string[][] = Array.from({ length: 9 }, () => []);
+  rows(lang).forEach((row) => [...row].forEach((c, col) => out[COL_FINGER[col]].push(c.toUpperCase())));
+  out[8].push("␣");
+  return out;
+}
+
 /** Teclado dibujado con HTML: cada tecla lleva el color de su dedo. */
 export function keyboardHtml(lang: Lang) {
   const R = rows(lang);

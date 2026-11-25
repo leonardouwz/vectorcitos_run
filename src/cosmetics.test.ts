@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { expect, test } from "vitest";
 import { coinsFor, giftFor, ITEMS, rarityOf, SLOTS } from "./cosmetics";
 
@@ -16,6 +17,8 @@ test("catálogo: ids únicos y nombres en dos idiomas", () => {
 
 test("cada color y cada estela traen su dato, y la rareza sube con el precio", () => {
   for (const i of ITEMS.filter((x) => x.slot === "skin")) expect(typeof i.hue).toBe("number");
+  for (const i of ITEMS.filter((x) => x.slot === "trail")) expect(i.shape).toBeDefined();
   for (const i of ITEMS.filter((x) => x.slot === "trail")) expect(i.trail).toBeDefined();
-  expect([rarityOf(60), rarityOf(150), rarityOf(300)]).toEqual(["common", "rare", "epic"]);
+  for (const i of ITEMS) { expect(i.blurb.es && i.blurb.en).toBeTruthy(); expect(existsSync(`public/icons/${i.icon}.webp`)).toBe(true); }
+  expect([rarityOf(60), rarityOf(150), rarityOf(300), rarityOf(820)]).toEqual(["common", "rare", "epic", "legendary"]);
 });
