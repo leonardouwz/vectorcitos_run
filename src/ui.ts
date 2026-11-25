@@ -1,6 +1,8 @@
 import { DIFFS, LEVELS, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
+import { device, deviceLabel, physicalKeys } from "./device";
+import { ic } from "./icons";
 import { ITEMS, SLOTS, SLOT_NAMES, coinsFor } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
 import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
@@ -39,7 +41,7 @@ const on = (root: HTMLElement, sel: string, fn: () => void) =>
 const toolbar = () => `
   <div class="toolbar">
     <button class="ghost" data-act="lang" aria-label="${tr("lang")}">${store.lang === "es" ? "EN" : "ES"}</button>
-    <button class="ghost" data-act="sound" aria-label="${tr("sound")}" aria-pressed="${!store.muted}">${store.muted ? "🔇" : "🔊"}</button>
+    <button class="ghost" data-act="sound" aria-label="${tr("sound")}" aria-pressed="${!store.muted}">${ic(store.muted ? "mute" : "sound")}</button>
   </div>`;
 
 function wireToolbar(root: HTMLElement, rerender: () => void) {
@@ -56,6 +58,23 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
   });
 }
 
+// Instalar como app: Chrome/Edge avisan con un evento; en iPhone y iPad hay que hacerlo desde el menú Compartir.
+let installEvt: (Event & { prompt: () => Promise<void> }) | null = null;
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e as typeof installEvt; renderInstall(); });
+addEventListener("appinstalled", () => { installEvt = null; renderInstall(); });
+
+function renderInstall() {
+  const slot = document.getElementById("installslot");
+  if (!slot || device.standalone) { if (slot) slot.innerHTML = ""; return; }
+  if (!installEvt && !(device.os === "ios" && device.touch)) { slot.innerHTML = ""; return; }
+  slot.innerHTML = `<button class="ghost" id="install">${ic("phone")} ${tr("install")}</button><p class="hint" id="installhint" hidden>${tr("installIos")}</p>`;
+  slot.querySelector("#install")!.addEventListener("click", async () => {
+    sfx.click();
+    if (installEvt) { await installEvt.prompt(); installEvt = null; renderInstall(); }
+    else slot.querySelector<HTMLElement>("#installhint")!.hidden = false;
+  });
+}
+
 export function home() {
   world.theme("menu");
   world.mode("menu");
@@ -63,12 +82,14 @@ export function home() {
     <main class="center plain">
       <h1 class="logo">VECTORCITOS<span>RUN<i class="cursor"></i></span></h1>
       <p class="tag">${tr("tagline")}</p>
-      ${pending ? `<div class="banner">🤝 <b>${esc(pending.nick)}</b> ${tr("challengeBy")} ${esc(pending.kind === "time" ? tr("timeAttack") : lvlName(LEVELS.find((l) => l.id === pending!.id)!))}: ${pending.wpm} ${tr("wpmShort")} · ${pending.acc}%</div>` : ""}
+      ${pending ? `<div class="banner">${ic("challenge")} <b>${esc(pending.nick)}</b> ${tr("challengeBy")} ${esc(pending.kind === "time" ? tr("timeAttack") : lvlName(LEVELS.find((l) => l.id === pending!.id)!))}: ${pending.wpm} ${tr("wpmShort")} · ${pending.acc}%</div>` : ""}
       <button class="btn big" id="play" data-focus>${pending ? tr("acceptChallenge") : tr("play")}</button>
-      <button class="ghost" id="box">💌 ${tr("box")}</button>
+      <div id="installslot" class="installslot"></div>
+      <button class="ghost" id="box">${ic("box")} ${tr("box")}</button>
     </main>`, (r) => {
     wireToolbar(r, home);
     on(r, "#box", () => suggest(home));
+    renderInstall();
     on(r, "#play", () => { unlockAudio(); music.start(); if (pending && store.current) startChallenge(); else profile(); });
   });
 }
@@ -104,10 +125,11 @@ function guide(next: () => void) {
   const names = FINGER_NAMES[store.lang];
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>🖐️ ${tr("guide")}</h2></header>
+      <header class="bar"><h2>${ic("hands")} ${tr("guide")}</h2></header>
       <section class="panel">
+        ${device.kind !== "desktop" ? `<p class="deviceTip">${ic(device.kind === "phone" ? "phone" : "kbd")} ${tr(device.kind === "phone" ? "guidePhone" : "guideTablet")}</p>` : ""}
         ${keyboardHtml(store.lang)}
-        <p class="tag" style="max-width:none">${tr("guideTips")}</p>
+        <p class="tips">${tr("guideTips")}</p>
         <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i>${n}</li>`).join("")}</ul>
       </section>
       <button class="btn" id="ok" data-focus style="align-self:center">${tr("guideOk")}</button>
@@ -124,15 +146,15 @@ function shop() {
   const worn = store.worn;
   show(`${toolbar()}
     <main class="wide shop">
-      <header class="bar"><h2>🛍️ ${tr("shop")}</h2><span class="who">🪙 ${store.coins}</span></header>
+      <header class="bar"><h2>${ic("shop")} ${tr("shop")}</h2><span class="who">${ic("coin")} ${store.coins}</span></header>
       <p class="hint">${tr("shopHint")}</p>
       <div class="shopbox">
         ${SLOTS.map((slot) => `<section class="slot"><h3>${SLOT_NAMES[slot][store.lang]}</h3>${ITEMS.filter((i) => i.slot === slot).map((i) => {
           const owned = store.owns(i.id), on = worn[slot] === i.id;
           const action = owned ? (on ? "off" : "on") : "buy";
           const afford = owned || store.coins >= i.price;
-          return `<div class="item ${on ? "wearing" : ""}"><span class="em">${i.emoji}</span><span class="nm">${i.name[store.lang]}</span>
-            <span class="pr">${owned ? (on ? `✓ ${tr("wearing")}` : "✓") : `🪙 ${i.price}`}</span>
+          return `<div class="item ${on ? "wearing" : ""}"><span class="em">${ic(i.icon)}</span><span class="nm">${i.name[store.lang]}</span>
+            <span class="pr">${owned ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</span>
             <button class="btn small" data-act="${action}" data-id="${i.id}" data-slot="${slot}" ${afford ? "" : `disabled title="${tr("notEnough")}"`}>${owned ? (on ? tr("unequip") : tr("equip")) : tr("buy")}</button></div>`;
         }).join("")}</section>`).join("")}
       </div>
@@ -163,22 +185,22 @@ function levelMap() {
   const done = LEVELS.filter((l) => store.best(l.id)).length;
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length} · 🪙 ${store.coins}</span></header>
+      <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length} · ${ic("coin")} ${store.coins}</span></header>
       <div class="modes">
-        ${store.giftReady ? `<button class="mode gift" id="gift"><b>🎁 ${tr("giftDay")}</b><small>+${store.giftAmount} 🪙</small></button>` : ""}
-        <button class="mode" id="shop"><b>🛍️ ${tr("shop")}</b><small>🪙 ${store.coins}</small></button>
-        <button class="mode" id="m-daily"><b>📅 ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `🔥 ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
-        <button class="mode" id="m-time"><b>⏱️ ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
-        <button class="mode" id="rank"><b>🏆 ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "·"}</small></button>
-        <button class="mode" id="prog"><b>📈 ${tr("progress")}</b></button>
-        <button class="mode" id="hands"><b>🖐️ ${tr("guide")}</b></button>
-        <button class="mode" id="box"><b>💌 ${tr("box")}</b></button>
+        ${store.giftReady ? `<button class="mode gift" id="gift"><b>${ic("gift")} ${tr("giftDay")}</b><small>+${store.giftAmount} ${ic("coin")}</small></button>` : ""}
+        <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coins}</small></button>
+        <button class="mode" id="m-daily"><b>${ic("daily")} ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
+        <button class="mode" id="m-time"><b>${ic("time")} ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
+        <button class="mode" id="rank"><b>${ic("rank")} ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "&nbsp;"}</small></button>
+        <button class="mode" id="prog"><b>${ic("progress")} ${tr("progress")}</b></button>
+        <button class="mode" id="hands"><b>${ic("hands")} ${tr("guide")}</b></button>
+        <button class="mode" id="box"><b>${ic("box")} ${tr("box")}</b></button>
       </div>
       <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
       <div class="grid">${LEVELS.filter((l) => l.diff === tab).map((l) => {
         const open = store.unlocked(l.id), b = store.best(l.id);
         return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
-          <i>${open ? "🎮" : "🚫"}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : ""}</span></button>`;
+          <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : ""}</span></button>`;
       }).join("")}</div>
       <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
@@ -223,7 +245,7 @@ function progress() {
   const fmt = new Intl.DateTimeFormat(store.lang, { day: "numeric", month: "short" });
   const rows = runs.slice(-8).reverse().map((r) => {
     const lv = LEVELS.find((x) => x.id === r.id);
-    const label = lv ? `${lvlName(lv)} · ${tr(lv.diff)}` : r.id === DAILY_ID ? `📅 ${tr("daily")}` : `⏱️ ${tr("timeAttack")}`;
+    const label = lv ? `${lvlName(lv)} · ${tr(lv.diff)}` : r.id === DAILY_ID ? `${ic("daily")} ${tr("daily")}` : `${ic("time")} ${tr("timeAttack")}`;
     return `<li><span>${fmt.format(r.ts)}</span><span>${label}</span><b>${r.wpm}</b><span>${r.acc}%</span><span class="st">${stars(r.stars)}</span></li>`;
   }).join("");
   show(`${toolbar()}
@@ -281,12 +303,13 @@ function run(cfg: RunCfg) {
   world.mode("play");
   music.mood(cfg.diff);
   show(`<main class="play">
-      <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span><button class="ghost" id="helpbtn" aria-pressed="${store.help}" aria-label="${tr("help")}" title="${tr("help")}">⌨️</button><span class="clock" id="clock">${cfg.limit ?? 0}s</span></header>
-      <div class="phrase idle" id="phrase"><div id="text"></div><span class="tap" id="tap">${tr("tapHint")}</span><span class="cd" id="cd" aria-live="assertive"></span></div>
+      <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span>${physicalKeys() ? `<button class="ghost" id="helpbtn" aria-pressed="${store.help}" aria-label="${tr("help")}" title="${tr("help")}">${ic("kbd")}</button>` : ""}<span class="clock" id="clock">${cfg.limit ?? 0}s</span><button class="ghost exit" id="exitbtn" aria-label="${tr("exitGame")}" title="${tr("exitGame")}">✕</button></header>
+      <div class="phrase idle" id="phrase"><div id="text"></div><span class="tap" id="tap">${tr(device.touch ? "tapHintTouch" : "tapHint")}</span><span class="cd" id="cd" aria-live="assertive"></span></div>
       <div class="meter" aria-hidden="true"><i id="meter"></i></div>
       <p class="hint" id="count"></p>
-      <div id="kbdbox">${store.help ? keyboardHtml(store.lang) : ""}</div>
-      <input id="in" class="ghost-input" aria-label="${tr("typeHint")}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      <div id="kbdbox">${store.help && physicalKeys() ? keyboardHtml(store.lang) : ""}</div>
+      <input id="in" class="ghost-input" aria-label="${tr("typeHint")}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="done" />
+      <div class="rotate" aria-hidden="true">${ic("phone")} ${tr("rotate")}</div>
     </main>`, (r) => {
     const $ = <T extends HTMLElement>(id: string) => r.querySelector<T>(`#${id}`)!;
     const phrase = $("phrase"), input = $<HTMLInputElement>("in"), clock = $("clock"), count = $("count");
@@ -320,7 +343,7 @@ function run(cfg: RunCfg) {
       world.progress(cfg.limit ? Math.min(1, streak / 40) : (done + cur.pos / cur.chars.length) / (cfg.total ?? 1));
       count.textContent = label();
       streakEl.hidden = streak < 10;
-      streakEl.textContent = `🔥 ${tr("streak")} ${streak}`;
+      streakEl.innerHTML = `${ic("fire")} <span class="lbl">${tr("streak")}</span> ${streak}`;
     };
     refresh();
 
@@ -356,14 +379,15 @@ function run(cfg: RunCfg) {
     r.addEventListener("pointerdown", focus);
     cleanup = () => { leaving = true; timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); removeEventListener("keydown", onKey); };
 
-    const helpBtn = $("helpbtn");
-    helpBtn.addEventListener("click", () => {
+    const helpBtn = r.querySelector<HTMLElement>("#helpbtn");
+    helpBtn?.addEventListener("click", () => {
       store.help = !store.help;
       helpBtn.setAttribute("aria-pressed", String(store.help));
       kbdbox.innerHTML = store.help ? keyboardHtml(store.lang) : "";
       highlightKey(kbdbox, cur.current, store.lang);
       focus();
     });
+    $("exitbtn").addEventListener("click", () => { leaving = true; cfg.back(); });
     input.addEventListener("focus", () => phrase.classList.remove("idle"));
     input.addEventListener("blur", () => { phrase.classList.add("idle"); if (!leaving && !over) setTimeout(focus, 50); });
     focus();
@@ -376,6 +400,7 @@ function run(cfg: RunCfg) {
       if (hit === "error") {
         streak = 0;
         sfx.error(); world.error();
+        if (device.touch && !store.muted) navigator.vibrate?.(25);
         phrase.classList.remove("err"); void phrase.offsetWidth; phrase.classList.add("err");
       } else {
         streak++;
@@ -393,9 +418,23 @@ function run(cfg: RunCfg) {
       }
       refresh();
     };
-    const feed = () => { const v = input.value; input.value = ""; for (const c of v) press(c); };
-    input.addEventListener("input", (e) => { if (!(e as InputEvent).isComposing) feed(); });
-    input.addEventListener("compositionend", feed);
+    // En computador se espera a que termine cada composición (así las tildes con tecla muerta funcionan).
+    // En pantalla táctil los teclados mantienen la palabra "en composición" mientras se escribe, así que
+    // se leen las letras nuevas a medida que llegan y se limpia el campo al cerrar la composición.
+    let prev = "";
+    const drain = (final: boolean) => {
+      const v = input.value;
+      if (device.touch) {
+        if (v.startsWith(prev)) for (const c of v.slice(prev.length)) press(c); // si no, el teclado cambió la palabra o borró: solo se re-sincroniza
+        prev = v;
+        if (final) { input.value = ""; prev = ""; }
+      } else if (final) {
+        input.value = "";
+        for (const c of v) press(c);
+      }
+    };
+    input.addEventListener("input", (e) => drain(!(e as InputEvent).isComposing));
+    input.addEventListener("compositionend", () => drain(true));
   });
 }
 
@@ -413,7 +452,7 @@ function playDaily() {
   const texts = dailyLevels(dateKey()).map((l) => l.text[store.lang]);
   let i = 0;
   run({
-    diff: "medium", title: `📅 ${tr("daily")}`, total: texts.length, next: () => texts[i++],
+    diff: "medium", title: tr("daily"), total: texts.length, next: () => texts[i++],
     finish: (rounds) => {
       const secs = rounds.reduce((n, x) => n + x.seconds, 0);
       results({ kind: "daily", title: tr("daily"), sum: summarize(rounds, secs), secs, retry: playDaily });
@@ -425,7 +464,7 @@ function playDaily() {
 const TIME_LIMIT = 60;
 function playTime(vs?: Challenge) {
   run({
-    diff: "hard", title: `⏱️ ${tr("timeAttack")}`, limit: TIME_LIMIT, next: endlessTexts(store.lang),
+    diff: "hard", title: tr("timeAttack"), limit: TIME_LIMIT, next: endlessTexts(store.lang),
     finish: (rounds) => results({ kind: "time", title: tr("timeAttack"), sum: summarize(rounds, TIME_LIMIT), secs: TIME_LIMIT, retry: () => playTime(vs), vs }),
     back: levelMap,
   });
@@ -435,10 +474,10 @@ function modeInfo(kind: "daily" | "time") {
   const done = store.daily.days[dateKey()];
   show(`${toolbar()}
     <main class="center">
-      <h2>${kind === "daily" ? `📅 ${tr("daily")}` : `⏱️ ${tr("timeAttack")}`}</h2>
+      <h2>${kind === "daily" ? `${ic("daily")} ${tr("daily")}` : `${ic("time")} ${tr("timeAttack")}`}</h2>
       <p class="tag">${tr(kind === "daily" ? "dailyDesc" : "timeDesc")}</p>
       <p class="hint">${kind === "daily"
-        ? `🔥 ${store.dailyStreak} ${tr("dayStreak")}${done ? ` · ✓ ${tr("doneToday")} (${done.wpm} ${tr("wpmShort")})` : ""}`
+        ? `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}${done ? ` · ✓ ${tr("doneToday")} (${done.wpm} ${tr("wpmShort")})` : ""}`
         : `${tr("bestScore")}: ${store.bestTime || "–"}`}</p>
       <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
@@ -483,7 +522,7 @@ function results(o: Outcome) {
     store.addRun({ id: l.id, ...run });
   } else if (o.kind === "daily") {
     store.recordDaily(dateKey(), { stars, wpm: sum.wpm, acc });
-    streakMsg = `🔥 ${store.dailyStreak} ${tr("dayStreak")}`;
+    streakMsg = `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`;
     store.addRun({ id: DAILY_ID, ...run });
   } else {
     isBest = store.recordTime(score);
@@ -508,8 +547,8 @@ function results(o: Outcome) {
       <div class="big-stars" aria-label="${stars}/3">${starHtml}</div>
       <p class="tag pop" style="animation-delay:1.5s">${tr(msg)}</p>
       <dl class="stats">${tiles.map(([k, n, suf]) => `<div><dt>${tr(k)}</dt><dd data-n="${n}" data-s="${suf}">0</dd></div>`).join("")}</dl>
-      ${duel ? `<p class="duel pop" style="animation-delay:1.5s">${esc(duel)}</p>` : ""}
-      <p class="good pop" style="animation-delay:1.55s">+${coins} 🪙 ${tr("coinsEarned")}</p>
+      ${duel ? `<p class="duel pop" style="animation-delay:1.5s">${verdict(mine, o.vs!.score) === "win" ? ic("win") + " " : ""}${esc(duel)}</p>` : ""}
+      <p class="good pop" style="animation-delay:1.55s">+${coins} ${ic("coin")} ${tr("coinsEarned")}</p>
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       ${streakMsg ? `<p class="good pop" style="animation-delay:1.6s">${streakMsg}</p>` : ""}
       <p class="hint" id="rankline" aria-live="polite"></p>
@@ -523,7 +562,7 @@ function results(o: Outcome) {
       <div class="row">
         <button class="btn ghost-b" id="map">${tr("map")}</button>
         <button class="btn ghost-b" id="retry">${tr("retry")}</button>
-        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">🤝 ${tr("challengeFriend")}</button>` : ""}
+        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
         ${nextLevel && store.unlocked(nextLevel.id) ? `<button class="btn" id="next" data-focus>${tr("next")}</button>` : ""}
       </div>
     </main>`, (r) => {
@@ -539,7 +578,7 @@ function results(o: Outcome) {
       const line = r.querySelector<HTMLElement>("#rankline")!;
       const text = (name: string, p: Place | null | undefined) => (p?.rank ? `${name}: ${tr("place")} ${p.rank} ${tr("of")} ${p.total}` : "");
       void submit(o.kind, o.kind === "daily" ? Math.round((sum.wpm * acc) / 100) : score, sum.wpm, acc, stars).then((res) => {
-        if (res && line.isConnected) line.textContent = `🏆 ${[text(tr("world"), res.global), text(`${tr("room")} ${store.online.room}`, res.room)].filter(Boolean).join(" · ")}`;
+        if (res && line.isConnected) line.innerHTML = `${ic("rank")} ${[text(tr("world"), res.global), text(`${tr("room")} ${store.online.room}`, res.room)].filter(Boolean).join(" · ")}`;
       });
     }
     on(r, "#map", () => { if (l) tab = l.diff; world.mode("menu"); levelMap(); });
@@ -567,7 +606,7 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
   if (scope === "room" && !o.room) scope = "world";
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>🏆 ${tr("ranking")}</h2><span class="who">${esc(store.current)}</span></header>
+      <header class="bar"><h2>${ic("rank")} ${tr("ranking")}</h2><span class="who">${esc(store.current)}</span></header>
       <section class="panel">
         <label class="check"><input type="checkbox" id="on" ${o.on ? "checked" : ""}> ${tr("appearAs")} <b>${esc(store.current)}</b></label>
         <form id="rf" class="row-form">
@@ -578,11 +617,11 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
         <p class="hint">${tr("rankPrivacy")}</p>
       </section>
       <div class="tabs">
-        <button class="tab" data-b="daily" aria-selected="${board === "daily"}">📅 ${tr("rankDaily")}</button>
-        <button class="tab" data-b="time" aria-selected="${board === "time"}">⏱️ ${tr("timeAttack")}</button>
+        <button class="tab" data-b="daily" aria-selected="${board === "daily"}">${ic("daily")} ${tr("rankDaily")}</button>
+        <button class="tab" data-b="time" aria-selected="${board === "time"}">${ic("time")} ${tr("timeAttack")}</button>
         <span class="gap"></span>
-        <button class="tab" data-s="world" aria-selected="${scope === "world"}">🌍 ${tr("scopeWorld")}</button>
-        ${o.room ? `<button class="tab" data-s="room" aria-selected="${scope === "room"}">🏫 ${esc(o.room)}</button>` : ""}
+        <button class="tab" data-s="world" aria-selected="${scope === "world"}">${ic("world")} ${tr("scopeWorld")}</button>
+        ${o.room ? `<button class="tab" data-s="room" aria-selected="${scope === "room"}">${ic("room")} ${esc(o.room)}</button>` : ""}
       </div>
       <ol class="board" id="board"><li class="hint">…</li></ol>
       <div class="row"><button class="ghost" id="back">${tr("back")}</button><button class="ghost" id="forget">${tr("forgetBtn")}</button></div>
@@ -623,7 +662,7 @@ function suggest(back: () => void) {
   const kinds = [["idea", "catIdea"], ["bug", "catBug"], ["other", "catOther"]] as const;
   show(`${toolbar()}
     <main class="center form">
-      <h2>💌 ${tr("box")}</h2>
+      <h2>${ic("box")} ${tr("box")}</h2>
       <p class="hint">${tr("boxIntro")}</p>
       <form id="f" class="stack" novalidate>
         <div class="tabs" role="radiogroup">${kinds.map(([k, key]) => `<button type="button" role="radio" class="tab" data-k="${k}" aria-checked="${k === cat}">${tr(key)}</button>`).join("")}</div>
@@ -658,6 +697,7 @@ function suggest(back: () => void) {
             category: cat, message, lang: store.lang,
             alias: (r.querySelector("#alias") as HTMLInputElement).value,
             website: (r.querySelector("#website") as HTMLInputElement).value,
+            device: deviceLabel(),
           }),
         });
         if (res.ok) {

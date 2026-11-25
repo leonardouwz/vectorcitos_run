@@ -234,7 +234,8 @@ export function createScene(canvas: HTMLCanvasElement) {
       camera.lookAt(0, -0.1, 0);
     } else if (mode === "menu") {
       camera.position.set(Math.sin(time * 0.25) * 6, 3.2, 8);
-      camera.lookAt(0, 3.4, 0);
+      // en pantallas altas (teléfono vertical) el personaje baja para no quedar detrás de los botones
+      camera.lookAt(0, camera.aspect < 0.75 ? 5.2 : 3.4, 0);
     } else {
       camera.position.set(0, 3 + progress * 0.4, 7.5);
       camera.lookAt(0, 4.4, -6);

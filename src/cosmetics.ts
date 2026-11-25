@@ -1,19 +1,20 @@
 import type { Lang } from "./content";
+import type { IconName } from "./icons";
 
 export type Slot = "head" | "face" | "body";
-export interface Item { id: string; slot: Slot; price: number; emoji: string; name: Record<Lang, string> }
+export interface Item { id: string; slot: Slot; price: number; icon: IconName; name: Record<Lang, string> }
 
 export const SLOTS: Slot[] = ["head", "face", "body"];
 
 /** Accesorios del personaje. Para añadir uno: una entrada aquí y su modelo en src/scene.ts. */
 export const ITEMS: Item[] = [
-  { id: "party", slot: "head", price: 40, emoji: "🥳", name: { es: "Gorro de fiesta", en: "Party hat" } },
-  { id: "tophat", slot: "head", price: 120, emoji: "🎩", name: { es: "Sombrero de copa", en: "Top hat" } },
-  { id: "crown", slot: "head", price: 300, emoji: "👑", name: { es: "Corona", en: "Crown" } },
-  { id: "glasses", slot: "face", price: 60, emoji: "👓", name: { es: "Gafas redondas", en: "Round glasses" } },
-  { id: "shades", slot: "face", price: 150, emoji: "😎", name: { es: "Gafas de sol", en: "Sunglasses" } },
-  { id: "bow", slot: "body", price: 80, emoji: "🎀", name: { es: "Moño", en: "Bow tie" } },
-  { id: "cape", slot: "body", price: 220, emoji: "🦸", name: { es: "Capa", en: "Cape" } },
+  { id: "party", slot: "head", price: 40, icon: "party", name: { es: "Gorro de fiesta", en: "Party hat" } },
+  { id: "tophat", slot: "head", price: 120, icon: "tophat", name: { es: "Sombrero de copa", en: "Top hat" } },
+  { id: "crown", slot: "head", price: 300, icon: "crown", name: { es: "Corona", en: "Crown" } },
+  { id: "glasses", slot: "face", price: 60, icon: "glasses", name: { es: "Gafas redondas", en: "Round glasses" } },
+  { id: "shades", slot: "face", price: 150, icon: "shades", name: { es: "Gafas de sol", en: "Sunglasses" } },
+  { id: "bow", slot: "body", price: 80, icon: "bow", name: { es: "Moño", en: "Bow tie" } },
+  { id: "cape", slot: "body", price: 220, icon: "cape", name: { es: "Capa", en: "Cape" } },
 ];
 
 export const SLOT_NAMES: Record<Slot, Record<Lang, string>> = {

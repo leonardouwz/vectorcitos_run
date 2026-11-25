@@ -19,7 +19,8 @@ test("valida: mensaje, categoría y campo trampa", () => {
   expect(validate({ message: "x".repeat(1001), category: "idea" })).toMatchObject({ ok: false, error: "too_long" });
   expect(validate({ message: "buena idea", category: "otra" })).toMatchObject({ ok: false });
   expect(validate({ message: "buena idea", category: "idea", website: "http://spam" })).toMatchObject({ spam: true });
-  expect(validate({ message: " buena\u0000 idea ", category: "bug", lang: "en", alias: "Ana" })).toEqual({ ok: true, value: { category: "bug", message: "buena idea", alias: "Ana", lang: "en" } });
+  expect(validate({ message: " buena\u0000 idea ", category: "bug", lang: "en", alias: "Ana" })).toEqual({ ok: true, value: { category: "bug", message: "buena idea", alias: "Ana", lang: "en", device: "" } });
+  expect(validate({ message: "buena idea", category: "idea", device: "phone/ios/app<script>" })).toMatchObject({ value: { device: "phone/ios/appscript" } });
 });
 
 test("guarda, ignora bots y limita por día; el buzón pide clave", async () => {
