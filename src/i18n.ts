@@ -38,6 +38,9 @@ const D = {
     guideHome: "Posición base",
     shop: "Tienda", coins: "Monedas", giftDay: "Regalo del día", giftGot: "¡Regalo recibido!", buy: "Comprar", equip: "Poner", unequip: "Quitar",
     notEnough: "Te faltan monedas", wearing: "Puesto", coinsEarned: "Monedas ganadas", shopHint: "Gana monedas jugando y cambia el look de Vectorcito.",
+    challengeFriend: "Retar a un amigo", linkCopied: "Enlace copiado. ¡Mándaselo a tu amigo!", challengeBy: "te retó en", acceptChallenge: "Aceptar reto",
+    youWin: "🎉 ¡Le ganaste a {nick}! ({a} contra {b})", youLose: "{nick} gana esta vez ({a} contra {b}). ¡Pide revancha!", youTie: "¡Empate con {nick}! ({a} contra {b})",
+    shareText: "¡Te reto en Vectorcitos Run! Mi marca:",
     msg1: "Casi. Intenta de nuevo.", msg2: "¡Muy bien!", msg3: "¡Perfecto!",
   },
   en: {
@@ -77,6 +80,9 @@ const D = {
     guideHome: "Home position",
     shop: "Shop", coins: "Coins", giftDay: "Daily gift", giftGot: "Gift received!", buy: "Buy", equip: "Wear", unequip: "Remove",
     notEnough: "Not enough coins", wearing: "Wearing", coinsEarned: "Coins earned", shopHint: "Earn coins by playing and change how Vectorcito looks.",
+    challengeFriend: "Challenge a friend", linkCopied: "Link copied. Send it to your friend!", challengeBy: "challenged you on", acceptChallenge: "Accept challenge",
+    youWin: "🎉 You beat {nick}! ({a} vs {b})", youLose: "{nick} wins this time ({a} vs {b}). Ask for a rematch!", youTie: "Tie with {nick}! ({a} vs {b})",
+    shareText: "I challenge you on Vectorcitos Run! My score:",
     msg1: "Almost. Try again.", msg2: "Nice work!", msg3: "Perfect!",
   },
 } as const;

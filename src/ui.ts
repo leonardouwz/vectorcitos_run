@@ -2,6 +2,7 @@ import { DIFFS, LEVELS, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
 import { ITEMS, SLOTS, SLOT_NAMES, coinsFor } from "./cosmetics";
+import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
 import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
@@ -17,6 +18,8 @@ let tab: Diff = "easy";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const tr = (k: Key) => t(store.lang, k);
+let pending: Challenge | null = null; // reto recibido por enlace
+const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k]));
 const DAILY_ID = 900, TIME_ID = 901; // partidas que no son un nivel
 const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
@@ -60,12 +63,13 @@ export function home() {
     <main class="center plain">
       <h1 class="logo">VECTORCITOS<span>RUN<i class="cursor"></i></span></h1>
       <p class="tag">${tr("tagline")}</p>
-      <button class="btn big" id="play" data-focus>${tr("play")}</button>
+      ${pending ? `<div class="banner">🤝 <b>${esc(pending.nick)}</b> ${tr("challengeBy")} ${esc(pending.kind === "time" ? tr("timeAttack") : lvlName(LEVELS.find((l) => l.id === pending!.id)!))}: ${pending.wpm} ${tr("wpmShort")} · ${pending.acc}%</div>` : ""}
+      <button class="btn big" id="play" data-focus>${pending ? tr("acceptChallenge") : tr("play")}</button>
       <button class="ghost" id="box">💌 ${tr("box")}</button>
     </main>`, (r) => {
     wireToolbar(r, home);
     on(r, "#box", () => suggest(home));
-    on(r, "#play", () => { unlockAudio(); music.start(); profile(); });
+    on(r, "#play", () => { unlockAudio(); music.start(); if (pending && store.current) startChallenge(); else profile(); });
   });
 }
 
@@ -84,7 +88,7 @@ function profile() {
       <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, profile);
-    const go = (n: string) => { store.login(n); if (store.guideSeen) levelMap(); else guide(levelMap); };
+    const go = (n: string) => { store.login(n); const after = pending ? startChallenge : levelMap; if (store.guideSeen) after(); else guide(after); };
     on(r, "#resume", () => go(store.current));
     on(r, "#back", home);
     r.querySelectorAll<HTMLElement>(".chip").forEach((c) => c.addEventListener("click", () => { sfx.click(); go(c.dataset.n!); }));
@@ -143,6 +147,14 @@ function shop() {
       shop();
     }));
   });
+}
+
+function startChallenge() {
+  const c = pending;
+  pending = null;
+  if (!c) return levelMap();
+  if (c.kind === "time") return playTime(c);
+  play(LEVELS.find((l) => l.id === c.id)!, c);
 }
 
 function levelMap() {
@@ -389,10 +401,10 @@ function run(cfg: RunCfg) {
 
 const once = (text: string) => { let used = false; return () => (used ? undefined : ((used = true), text)); };
 
-function play(l: Level) {
+function play(l: Level, vs?: Challenge) {
   run({
     diff: l.diff, title: `${lvlName(l)} · ${tr(l.diff)}`, next: once(l.text[store.lang]),
-    finish: ([round]) => results({ kind: "level", level: l, title: lvlName(l), sum: summarize([round], round.seconds), secs: round.seconds, retry: () => play(l) }),
+    finish: ([round]) => results({ kind: "level", level: l, title: lvlName(l), sum: summarize([round], round.seconds), secs: round.seconds, retry: () => play(l, vs), vs }),
     back: levelMap,
   });
 }
@@ -411,10 +423,10 @@ function playDaily() {
 }
 
 const TIME_LIMIT = 60;
-function playTime() {
+function playTime(vs?: Challenge) {
   run({
     diff: "hard", title: `⏱️ ${tr("timeAttack")}`, limit: TIME_LIMIT, next: endlessTexts(store.lang),
-    finish: (rounds) => results({ kind: "time", title: tr("timeAttack"), sum: summarize(rounds, TIME_LIMIT), secs: TIME_LIMIT, retry: playTime }),
+    finish: (rounds) => results({ kind: "time", title: tr("timeAttack"), sum: summarize(rounds, TIME_LIMIT), secs: TIME_LIMIT, retry: () => playTime(vs), vs }),
     back: levelMap,
   });
 }
@@ -432,7 +444,7 @@ function modeInfo(kind: "daily" | "time") {
     </main>`, (r) => {
     wireToolbar(r, () => modeInfo(kind));
     on(r, "#back", levelMap);
-    on(r, "#go", kind === "daily" ? playDaily : playTime);
+    on(r, "#go", kind === "daily" ? playDaily : () => playTime());
   });
 }
 
@@ -446,7 +458,7 @@ function countUp(el: HTMLElement, to: number, suffix = "", ms = 900) {
   requestAnimationFrame(step);
 }
 
-interface Outcome { kind: "level" | "daily" | "time"; level?: Level; title: string; sum: Summary; secs: number; retry: () => void }
+interface Outcome { kind: "level" | "daily" | "time"; level?: Level; title: string; sum: Summary; secs: number; retry: () => void; vs?: Challenge }
 
 function results(o: Outcome) {
   const { sum, level: l } = o;
@@ -479,6 +491,9 @@ function results(o: Outcome) {
   }
 
   music.mood("menu");
+  // Comparación con el amigo que envió el reto (si lo hay)
+  const mine = compareScore(o.kind === "time" ? "time" : "level", sum.wpm, acc, score);
+  const duel = o.vs ? fmt(tr(verdict(mine, o.vs.score) === "win" ? "youWin" : verdict(mine, o.vs.score) === "lose" ? "youLose" : "youTie"), { nick: o.vs.nick, a: mine, b: o.vs.score }) : "";
   const coins = coinsFor({ kind: o.kind, stars, wpm: sum.wpm, score, isBest });
   store.addCoins(coins);
   const tiles: [Key, number, string][] = o.kind === "time"
@@ -493,6 +508,7 @@ function results(o: Outcome) {
       <div class="big-stars" aria-label="${stars}/3">${starHtml}</div>
       <p class="tag pop" style="animation-delay:1.5s">${tr(msg)}</p>
       <dl class="stats">${tiles.map(([k, n, suf]) => `<div><dt>${tr(k)}</dt><dd data-n="${n}" data-s="${suf}">0</dd></div>`).join("")}</dl>
+      ${duel ? `<p class="duel pop" style="animation-delay:1.5s">${esc(duel)}</p>` : ""}
       <p class="good pop" style="animation-delay:1.55s">+${coins} 🪙 ${tr("coinsEarned")}</p>
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       ${streakMsg ? `<p class="good pop" style="animation-delay:1.6s">${streakMsg}</p>` : ""}
@@ -503,9 +519,11 @@ function results(o: Outcome) {
       ${isBest ? `<p class="good pop" style="animation-delay:1.8s">${tr("newBest")}</p>` : ""}
       ${opened ? `<p class="good pop" style="animation-delay:1.9s">${tr("unlocked")}</p>` : ""}
       ${o.kind === "level" && !nextLevel && l && !l.free ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
+      <p class="hint" id="sharenote" role="status"></p>
       <div class="row">
         <button class="btn ghost-b" id="map">${tr("map")}</button>
         <button class="btn ghost-b" id="retry">${tr("retry")}</button>
+        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">🤝 ${tr("challengeFriend")}</button>` : ""}
         ${nextLevel && store.unlocked(nextLevel.id) ? `<button class="btn" id="next" data-focus>${tr("next")}</button>` : ""}
       </div>
     </main>`, (r) => {
@@ -526,6 +544,20 @@ function results(o: Outcome) {
     }
     on(r, "#map", () => { if (l) tab = l.diff; world.mode("menu"); levelMap(); });
     on(r, "#retry", o.retry);
+    on(r, "#share", async () => {
+      const note = r.querySelector<HTMLElement>("#sharenote")!;
+      const url = encode({ kind: o.kind === "time" ? "time" : "level", id: l?.id ?? 0, nick: store.current, wpm: sum.wpm, acc, score: mine }, location.origin);
+      try {
+        if (navigator.share) { await navigator.share({ title: "Vectorcitos Run", text: `${tr("shareText")} ${mine}`, url }); return; }
+        await navigator.clipboard.writeText(url);
+        note.textContent = tr("linkCopied");
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return; // la persona cerró el menú de compartir
+        // Sin portapapeles ni menú de compartir: se muestra el enlace para copiarlo a mano.
+        note.innerHTML = `${tr("linkCopied")}<br><input class="field" readonly value="${esc(url)}" aria-label="link">`;
+        note.querySelector("input")!.addEventListener("focus", (ev) => (ev.target as HTMLInputElement).select());
+      }
+    });
     on(r, "#next", () => { tab = nextLevel!.diff; info(nextLevel!); });
   });
 }
@@ -646,5 +678,7 @@ export function start(w: World) {
   world = w;
   document.documentElement.lang = store.lang;
   setMuted(store.muted);
+  pending = decode(location.hash);
+  if (location.hash.startsWith("#reto=")) history.replaceState(null, "", location.pathname + location.search);
   home();
 }

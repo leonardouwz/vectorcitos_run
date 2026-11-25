@@ -147,3 +147,5 @@ main.shop { gap: .6rem; }
 .item .em { font-size: 1.4rem; } .item .pr { font-family: var(--mono); color: var(--estrella); font-size: .9rem; }
 .btn.small { font-size: .9rem; padding: .35rem .8rem; } .btn:disabled { opacity: .4; cursor: not-allowed; }
 .mode.gift { border-color: var(--estrella); box-shadow: 0 0 14px rgb(255 193 7 / .3); } .mode.gift b { color: var(--estrella); }
+.banner { background: rgb(10 10 53 / .92); border: 1px solid var(--estrella); border-radius: 8px; padding: .7rem 1rem; font-family: var(--mono); max-width: 34rem; }
+.duel { font-family: var(--mono); font-size: 1.1rem; color: var(--ahora); margin: 0; }

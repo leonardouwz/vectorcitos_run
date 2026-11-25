@@ -26,6 +26,11 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Contrarreloj:** 60 segundos, frases sin fin. Cada letra acertada suma 10 puntos y cada error resta 5.
 - Todas empiezan con cuenta regresiva (3, 2, 1, ¡YA!).
 
+## Ideas que vinieron del buzón
+- **Guía de dedos:** pantalla "Cómo colocar los dedos" (la primera vez y desde el mapa) y un teclado en el juego con el color de cada dedo y la próxima tecla resaltada (`src/keys.ts`). Se puede apagar con el botón ⌨️.
+- **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/scene.ts`.
+- **Retar a un amigo:** al terminar un nivel o la contrarreloj, el botón 🤝 genera un enlace con tu marca (`#reto=...`). Quien lo abre juega lo mismo y ve quién ganó. No usa servidor.
+
 ## Buzón de sugerencias
 Los jugadores escriben desde 💌 en el inicio o en el mapa. El mensaje va a `api/suggest.ts`, que lo guarda en un almacén **privado** de Vercel Blob (tope de 200 por día y campo trampa contra bots).
 Para leerlos abre `https://TU-DOMINIO/api/inbox?key=TU_CLAVE`, donde la clave es la variable de entorno `ADMIN_KEY` del proyecto en Vercel. Con `&format=json` los obtienes como datos. Además de `ADMIN_KEY`, hace falta `BLOB_READ_WRITE_TOKEN`, que Vercel crea al conectar el almacén.
@@ -45,6 +50,9 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 | `src/content.ts` | Niveles y frases en español e inglés |
 | `src/i18n.ts` | Textos de la interfaz |
 | `src/store.ts` | Jugadores, avance, historial y racha (localStorage) |
+| `src/keys.ts` | Dedos y teclado de ayuda |
+| `src/cosmetics.ts` | Accesorios, monedas y regalo |
+| `src/challenge.ts` | Retos entre amigos por enlace |
 | `src/modes.ts` | Reto diario, días seguidos y frases de la contrarreloj |
 | `src/online.ts` | Envío y lectura del ranking |
 | `api/` | Buzón de sugerencias y ranking (funciones de Vercel) |
