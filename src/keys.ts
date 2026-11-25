@@ -44,7 +44,7 @@ const stripAccent = (c: string) => (c === "ñ" ? c : c.normalize("NFD").replace(
 export function fingerKeys(lang: Lang): string[][] {
   const out: string[][] = Array.from({ length: 9 }, () => []);
   rows(lang).forEach((row) => [...row].forEach((c, col) => out[COL_FINGER[col]].push(c.toUpperCase())));
-  out[8].push("␣");
+  out[8].push(lang === "es" ? "ESPACIO" : "SPACE");
   return out;
 }
 

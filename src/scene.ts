@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { Diff } from "./content";
 import { ITEMS } from "./cosmetics";
@@ -27,7 +28,8 @@ export function createScene(canvas: HTMLCanvasElement) {
   scene.add(rim);
 
   const world = createWorld(scene, { low });
-  const hero = createHero(scene);
+  const envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; // reflejos para el cromado
+  const hero = createHero(scene, envTex);
 
   // Brillo de neón (solo en pantallas grandes)
   let composer: EffectComposer | null = null;
@@ -41,7 +43,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   }
 
   // Chispas: un solo grupo de puntos que se reparte entre explosiones.
-  const P = 100;
+  const P = 160;
   const pPos = new Float32Array(P * 3).fill(999);
   const pCol = new Float32Array(P * 3);
   const pVel = new Float32Array(P * 3);
@@ -49,11 +51,25 @@ export function createScene(canvas: HTMLCanvasElement) {
   const pGeo = new THREE.BufferGeometry();
   pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute("color", new THREE.BufferAttribute(pCol, 3));
-  const sparks = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true, transparent: true, fog: false }));
+  const sparks = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 12, sizeAttenuation: false, vertexColors: true, transparent: true, fog: false, depthWrite: false, alphaTest: 0.05 }));
+  // Forma de las partículas: se dibuja una vez en un lienzo (círculo, corazón, estrella o llama).
+  const shapeTex = (shape: string) => {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+    const g = cv.getContext("2d")!; g.fillStyle = "#fff"; g.translate(32, 32);
+    if (shape === "heart") { g.beginPath(); g.moveTo(0, 22); g.bezierCurveTo(-34, -2, -20, -26, 0, -10); g.bezierCurveTo(20, -26, 34, -2, 0, 22); g.fill(); }
+    else if (shape === "star") { g.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 11 : 28, a = (k * Math.PI) / 5 - Math.PI / 2; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.fill(); }
+    else if (shape === "flame") { g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(26, -6, 22, 26, 0, 28); g.bezierCurveTo(-22, 26, -26, -6, 0, -30); g.fill(); }
+    else { const gr = g.createRadialGradient(0, 0, 0, 0, 0, 28); gr.addColorStop(0, "#fff"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(-32, -32, 64, 64); }
+    return new THREE.CanvasTexture(cv);
+  };
+  const SHAPES: Record<string, THREE.Texture> = {};
+  const setShape = (shape: string) => { const m = sparks.material as THREE.PointsMaterial; m.map = SHAPES[shape] ??= shapeTex(shape); m.needsUpdate = true; };
   sparks.frustumCulled = false;
   scene.add(sparks);
+  setShape("dot");
   let pNext = 0;
   let trail: number | "rainbow" | null = null; // estela que lleva el jugador
+  let trailT = 0;
   const c = new THREE.Color(), o = new THREE.Vector3();
   const burst = (hex: number, n: number, power: number) => {
     hero.headWorld(o);
@@ -107,6 +123,18 @@ export function createScene(canvas: HTMLCanvasElement) {
     camera.fov = 60 + boost * 5 + (mode === "play" ? Math.min(speed / 4, 4) : 0);
     camera.updateProjectionMatrix();
 
+    if (trail !== null && mode !== "shop" && !reduce) { // la estela suelta partículas sin parar mientras corre
+      trailT += dt;
+      while (trailT > 0.045) {
+        trailT -= 0.045;
+        const i = pNext++ % P;
+        pPos.set([(Math.random() - 0.5) * 0.7, 0.3 + Math.random() * 0.5, 0.5], i * 3);
+        pVel.set([(Math.random() - 0.5) * 0.8, 2 + Math.random() * 1.5, 0.2], i * 3);
+        if (trail === "rainbow") c.setHSL((time * 0.6 + Math.random() * 0.2) % 1, 0.9, 0.6); else c.set(trail);
+        pCol.set([c.r, c.g, c.b], i * 3);
+        pLife[i] = 0.5 + Math.random() * 0.4;
+      }
+    }
     for (let i = 0; i < P; i++) {
       if (pLife[i] <= 0) { pPos[i * 3 + 1] = 999; continue; }
       pLife[i] -= dt;
@@ -144,6 +172,7 @@ export function createScene(canvas: HTMLCanvasElement) {
       hero.dress(ids);
       const t = ITEMS.find((i) => ids.includes(i.id) && i.slot === "trail")?.trail ?? null;
       trail = t;
+      setShape(ITEMS.find((i) => ids.includes(i.id) && i.slot === "trail")?.shape ?? "dot");
       world.setTrail(typeof t === "number" ? t : null);
     },
     /** Con teclado de colores abajo, Vectorcito se ve en el espacio libre del medio. */

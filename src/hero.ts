@@ -22,15 +22,16 @@ const S = MODEL_H / MODEL_BOX_H;
 const FROM_MODEL = (y: number) => (y + 0.952) * S; // altura del modelo original → mundo
 const MODEL: Anchors = { headTop: FROM_MODEL(0.455), faceY: FROM_MODEL(-0.09), faceZ: -0.5, eyeDX: 0.25, bodyW: 0.72 * S, bodyD: 0.41 * S, chestY: FROM_MODEL(-0.36), backTop: FROM_MODEL(0.3), sc: 1.3 };
 
-const HUE = { value: 0 }; // giro de color (radianes) compartido por todo el cuerpo
+const HUE = { value: 0 };
+const SAT = { value: 1 }; // 1 = color normal, ~0 = cromado // giro de color (radianes) compartido por todo el cuerpo
 
 /** Gira el color del material: así un mismo modelo sirve para todos los colores y para el destello rojo al fallar. */
 function hueable(mat: THREE.MeshStandardMaterial) {
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uHue = HUE;
+    sh.uniforms.uHue = HUE; sh.uniforms.uSat = SAT;
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float uHue;\nvec3 hueRot(vec3 c, float a){ const vec3 k = vec3(0.57735); float ca = cos(a), sa = sin(a); return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca); }")
-      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb = hueRot(diffuseColor.rgb, uHue);")
+      .replace("#include <common>", "#include <common>\nuniform float uHue; uniform float uSat;\nvec3 hueRot(vec3 c, float a){ const vec3 k = vec3(0.57735); float ca = cos(a), sa = sin(a); return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca); }")
+      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb = hueRot(diffuseColor.rgb, uHue); diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3,0.59,0.11)) * 1.15), diffuseColor.rgb, uSat);")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance = hueRot(totalEmissiveRadiance, uHue);");
   };
   mat.customProgramCacheKey = () => "hue";
@@ -39,7 +40,7 @@ function hueable(mat: THREE.MeshStandardMaterial) {
 const mat = (color: number, emissive = 0, extra: THREE.MeshStandardMaterialParameters = {}) =>
   new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: emissive ? 0.6 : 0, roughness: 0.45, metalness: 0.2, ...extra });
 
-export function createHero(scene: THREE.Scene) {
+export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = null) {
   const hero = new THREE.Group();
   hero.visible = false; // se muestra cuando el modelo carga (o falla), para que no se vea un cambio de personaje
   scene.add(hero);
@@ -76,6 +77,7 @@ export function createHero(scene: THREE.Scene) {
   let legL: THREE.Object3D = sLegL, legR: THREE.Object3D = sLegR, armL: THREE.Object3D = sArmL, armR: THREE.Object3D = sArmR;
   let lids: THREE.Mesh | null = null;
   let modelBase: THREE.Group | null = null;
+  let bodyMat: { setMetal(on: boolean): void } | null = null;
 
   // ---------- Modelo generado: se parte en cuerpo, brazos y piernas para poder moverlos
   void (async () => {
@@ -109,7 +111,9 @@ export function createHero(scene: THREE.Scene) {
     material.emissiveIntensity = 0.28; // un poco de brillo propio para que se vea "neón"
     material.roughness = 0.55; material.metalness = 0.05;
     hueable(material);
+    bodyMat = { setMetal(on) { material.metalness = on ? 0.95 : 0.05; material.roughness = on ? 0.18 : 0.55; material.envMap = on ? envTex : null; material.emissiveIntensity = on ? 0.05 : 0.28; material.needsUpdate = true; } };
 
+    bodyMat.setMetal(metal);
     const root = new THREE.Group();
     const pivot = (ids: number[], px: number, py: number) => {
       const g = new THREE.BufferGeometry();
@@ -146,7 +150,7 @@ export function createHero(scene: THREE.Scene) {
   }
 
   // ---------- Accesorios (todos empiezan ocultos; dress() muestra los puestos)
-  const BLACK = mat(0x2a2a55), RED = mat(0xff7070), GOLD = mat(0xffc107, 0xffc107), PURPLE = mat(0x6a2bd9), BLUE = mat(0x2f6bff), WHITE = mat(0xf4f4ff), NEON = new THREE.MeshBasicMaterial({ color: 0x17ff93 });
+  const BLACK = mat(0x2a2a55, 0x14143a), RED = mat(0xff4d6d, 0xff2d55), GOLD = mat(0xffc107, 0xffc107), BLUE = mat(0x2f6bff), WHITE = mat(0xffffff, 0xcfd6ff), NEON = new THREE.MeshBasicMaterial({ color: 0x17ff93, transparent: true, opacity: 0.55 });
   const at = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) => { o.position.set(x, y, z); return o; };
   const mesh = (g: THREE.BufferGeometry, m: THREE.Material) => new THREE.Mesh(g, m);
   const cyl = (rt: number, rb: number, h: number, m: THREE.Material, open = false) => mesh(new THREE.CylinderGeometry(rt, rb, h, 22, 1, open), m);
@@ -167,15 +171,31 @@ export function createHero(scene: THREE.Scene) {
     // Cabeza
     set("party", head(at(mesh(new THREE.ConeGeometry(0.28, 0.6, 20), RED), 0, 0.3, 0), at(ball(0.08, GOLD), 0, 0.62, 0), at(cyl(0.285, 0.285, 0.05, GOLD), 0, 0.06, 0)));
     set("tophat", head(at(cyl(0.52, 0.52, 0.05, BLACK), 0, 0.03, 0), at(cyl(0.32, 0.32, 0.42, BLACK), 0, 0.25, 0), at(cyl(0.325, 0.325, 0.08, RED), 0, 0.1, 0)));
-    set("crown", head(at(cyl(0.32, 0.32, 0.2, GOLD, true), 0, 0.1, 0), ...Array.from({ length: 5 }, (_, k) => at(mesh(new THREE.ConeGeometry(0.07, 0.24, 8), GOLD), Math.cos((k * 2 * Math.PI) / 5) * 0.28, 0.3, Math.sin((k * 2 * Math.PI) / 5) * 0.28))));
+    set("crown", head(at(cyl(0.32, 0.32, 0.2, GOLD, true), 0, 0.1, 0), ...Array.from({ length: 5 }, (_, k) => { const x = Math.cos((k * 2 * Math.PI) / 5) * 0.28, z = Math.sin((k * 2 * Math.PI) / 5) * 0.28; return [at(mesh(new THREE.ConeGeometry(0.07, 0.24, 8), GOLD), x, 0.3, z), at(ball(0.045, mat([0xff3b6b, 0x3bd9ff, 0x7dff6b][k % 3], [0xff3b6b, 0x3bd9ff, 0x7dff6b][k % 3])), x, 0.44, z)]; }).flat()));
+    accessories.crown.scale.multiplyScalar(1.4); accessories.crown.position.y -= 0.03;
     set("wizard", head(at(mesh(new THREE.ConeGeometry(0.34, 0.85, 22), BLUE), 0, 0.42, 0), at(cyl(0.5, 0.5, 0.04, BLUE), 0, 0.02, 0), at(ball(0.06, GOLD), 0.1, 0.35, -0.3), at(ball(0.05, GOLD), -0.15, 0.55, -0.2), at(ball(0.04, GOLD), 0.05, 0.7, -0.1)));
-    const halo = mesh(new THREE.TorusGeometry(0.34, 0.04, 10, 36).rotateX(Math.PI / 2), GOLD);
-    set("halo", head(at(halo, 0, 0.55, 0)));
-    anim.halo = (t) => { accessories.halo.children[0].position.y = 0.55 + Math.sin(t * 2.5) * 0.04; accessories.halo.rotation.y = t * 0.8; };
+    const halo = mesh(new THREE.TorusGeometry(0.42, 0.065, 12, 40).rotateX(Math.PI / 2 - 0.25), new THREE.MeshBasicMaterial({ color: 0xfff1a0 }));
+    set("halo", head(at(halo, 0, 0.42, 0)));
+    anim.halo = (t) => { accessories.halo.children[0].position.y = 0.42 + Math.sin(t * 2.5) * 0.04; accessories.halo.rotation.y = t * 0.8; };
     const earY = A.faceY - A.headTop + 0.05, band = mesh(new THREE.TorusGeometry(1, 0.045 * sc, 8, 28, Math.PI), BLACK);
     band.position.y = earY * sc;
     band.scale.set((A.bodyW + 0.04) * sc, (A.headTop - A.faceY + 0.05) * sc * 1.0, 1);
     set("headphones", head(band, ...[-1, 1].map((s) => at(cyl(0.17 * sc, 0.17 * sc, 0.13 * sc, RED).rotateZ(Math.PI / 2), s * (A.bodyW + 0.05) * sc, earY * sc, 0))));
+
+    // Orejas de gato: dos conos en las esquinas de arriba con el interior rosa
+    const ear = (x: number) => at(grp([0, 0, 0], at(mesh(new THREE.ConeGeometry(0.3 * sc, 0.62 * sc, 4), mat(0x3a3a7a)), 0, 0.28 * sc, 0), at(mesh(new THREE.ConeGeometry(0.18 * sc, 0.44 * sc, 4), mat(0xff8fc0, 0xff8fc0)), 0, 0.24 * sc, -0.1 * sc)), x, 0, 0);
+    const earA = ear(-0.5 * A.bodyW * sc), earB = ear(0.5 * A.bodyW * sc);
+    earA.visible = earB.visible = true; earA.rotation.z = 0.2; earB.rotation.z = -0.2;
+    set("catears", head(earA, earB));
+    anim.catears = (t) => { earA.rotation.z = 0.2 + Math.max(0, Math.sin(t * 1.3) - 0.9) * 2; earB.rotation.z = -0.2; };
+    // Casco espacial: cúpula de cristal, aro metálico y luz
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, depthWrite: false });
+    const domeR = Math.max(A.bodyW, A.bodyD) * sc * 1.12;
+    const dome = mesh(new THREE.SphereGeometry(domeR, 32, 20), glass);
+    const rim = mesh(new THREE.TorusGeometry(domeR * 0.82, 0.08 * sc, 12, 40).rotateX(Math.PI / 2), mat(0xe8eeff, 0xaab4ff, { metalness: 0.1, roughness: 0.4 }));
+    const lamp = ball(0.06 * sc, mat(0xff4d4d, 0xff4d4d));
+    set("spacehelmet", grp([0, (A.headTop + A.faceY) / 2 - 0.1, 0], dome, at(rim, 0, -domeR * 0.55, 0), at(lamp, domeR * 0.75, -domeR * 0.45, -domeR * 0.45)));
+    anim.spacehelmet = (t) => { (lamp.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.4 + Math.abs(Math.sin(t * 3)); };
 
     // Cara (origen: centro de los ojos, sobre el frente de la pantalla)
     const lens = (m: THREE.Material, w: number, h: number) => [-1, 1].map((s) => at(mesh(new RoundedBoxGeometry(w, h, 0.04, 3, 0.04), m), s * A.eyeDX * sc, 0, -0.045));
@@ -184,33 +204,66 @@ export function createHero(scene: THREE.Scene) {
     set("monocle", face(at(mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 24), GOLD), A.eyeDX * sc, 0, -0.03), at(box(0.012, 0.35, 0.012, GOLD), A.eyeDX * sc + 0.1, -0.2, -0.03)));
     set("visor", face(at(mesh(new RoundedBoxGeometry(A.eyeDX * 2 * sc + 0.4, 0.2, 0.05, 3, 0.05), NEON), 0, 0, -0.045)));
 
+    // Bigote: dos rizos bajo la nariz
+    const stache = (x: number) => { const m = mesh(new THREE.SphereGeometry(1, 16, 10).scale(0.26 * sc, 0.09 * sc, 0.07 * sc), mat(0xf2a65a, 0xb8641a)); m.position.set(x * 0.22 * sc, 0, 0); m.rotation.z = x * 0.3; return m; };
+    const tip = (x: number) => at(ball(0.06 * sc, mat(0xf2a65a, 0xb8641a)), x * 0.46 * sc, 0.07 * sc, 0);
+    set("mustache", face(at(stache(-1), 0, 0, 0), at(stache(1), 0, 0, 0), tip(-1), tip(1)));
+    accessories.mustache.position.y -= 0.1; accessories.mustache.position.z -= 0.04;
+
     // Cuerpo
     const bowPart = (s: number) => at(box(0.2, 0.14, 0.05, RED), s * 0.12, 0, 0);
-    set("bow", grp([0, A.chestY, A.faceZ], bowPart(-1), bowPart(1), ball(0.06, RED)));
+    set("bow", grp([0, A.chestY - 0.12, A.faceZ * 1.05], bowPart(-1), bowPart(1), ball(0.06, RED)));
+    accessories.bow.scale.multiplyScalar(1.5);
     accessories.bow.children[0].rotation.z = 0.25;
     accessories.bow.children[1].rotation.z = -0.25;
-    const ring = mesh(new THREE.TorusGeometry(1, 0.09, 10, 32).rotateX(Math.PI / 2), mat(0xff5a4d));
+    const ring = mesh(new THREE.TorusGeometry(1, 0.09, 10, 32).rotateX(Math.PI / 2), mat(0xff8a1a, 0xff5a00));
     ring.scale.set((A.bodyW + 0.03) * sc, 1, (A.bodyD + 0.03) * sc);
-    const tail = mesh(new THREE.BoxGeometry(0.16, 0.5, 0.05).translate(0, -0.22, 0), mat(0xff5a4d));
-    set("scarf", grp([0, A.chestY + 0.15, 0], ring, at(tail, (A.bodyW - 0.12) * sc, 0, -(A.bodyD + 0.02) * sc)));
+    const tail = mesh(new THREE.BoxGeometry(0.16, 0.5, 0.05).translate(0, -0.22, 0), mat(0xff8a1a, 0xff5a00));
+    set("scarf", grp([0, A.chestY - 0.22, 0], ring, at(tail, (A.bodyW - 0.12) * sc, 0, -(A.bodyD + 0.02) * sc)));
     anim.scarf = (t, sp) => { accessories.scarf.children[1].rotation.x = 0.2 + Math.min(sp / 20, 0.6) + Math.sin(t * 8) * 0.08; };
-    const cape = mesh(new THREE.BoxGeometry(A.bodyW * 1.8 * sc, 1.25, 0.04).translate(0, -0.62, 0), PURPLE);
-    set("cape", grp([0, A.backTop, A.bodyD + 0.02], cape));
-    anim.cape = (t, sp) => { cape.rotation.x = 0.12 + Math.min(sp / 18, 0.5) + Math.sin(t * 7) * 0.05; };
-    // alas: dos plumas planas por lado, que se abren hacia afuera
+    // capa: tela con ondas, cuello dorado y broche con gema
+    const capeMat = mat(0x7a2bff, 0x2a0a66, { roughness: 0.35, metalness: 0.1, side: THREE.DoubleSide });
+    const CW = A.bodyW * 1.55 * sc, CH = 1.15 * sc;
+    const capeGeo = new THREE.PlaneGeometry(CW, CH, 10, 14);
+    capeGeo.translate(0, -CH / 2, 0);
+    const base = Float32Array.from(capeGeo.attributes.position.array as Float32Array);
+    const cloth = mesh(capeGeo, capeMat);
+    const ringW = (A.bodyW + 0.04) * sc, ringD = (A.bodyD + 0.04) * sc;
+    const collar = mesh(new THREE.TorusGeometry(1, 0.07 * sc, 10, 40).rotateX(Math.PI / 2), GOLD);
+    collar.scale.set(ringW, 1, ringD);
+    const gem = ball(0.09 * sc, mat(0xff3b6b, 0xff3b6b));
+    const clasp = (x: number) => at(ball(0.07 * sc, GOLD), x, 0, -ringD);
+    set("cape", grp([0, A.backTop - 0.02, 0], collar, at(cloth, 0, 0, ringD * 0.98), clasp(-0.2 * sc), clasp(0.2 * sc), at(gem, 0, -0.04, -ringD - 0.02)));
+    const pos = capeGeo.attributes.position as THREE.BufferAttribute;
+    anim.cape = (t, sp) => {
+      const fly = 0.1 + Math.min(sp / 14, 1) * 0.55; // con velocidad, la capa vuela hacia atrás
+      for (let i = 0; i < pos.count; i++) {
+        const x = base[i * 3], y = base[i * 3 + 1], v = -y / CH; // v: 0 arriba, 1 abajo
+        const wave = Math.sin(t * 6 - v * 5 + x * 3) * 0.07 * v;
+        pos.setXYZ(i, x * (1 + v * 0.34), y * (1 - fly * 0.25 * v), v * fly * 0.9 * CH * 0.5 + wave * CH);
+      }
+      pos.needsUpdate = true; capeGeo.computeVertexNormals();
+    };
+    // Mochila cohete: dos tanques con boquillas y llamas que crecen con la velocidad
+    const tank = (x: number) => { const t = new THREE.Group(); t.add(cyl(0.12 * sc, 0.12 * sc, 0.6 * sc, mat(0xe6ecff, 0x6677aa, { metalness: 0.3, roughness: 0.35 })), at(cyl(0.125 * sc, 0.125 * sc, 0.07 * sc, RED), 0, 0.15 * sc, 0), at(mesh(new THREE.ConeGeometry(0.12 * sc, 0.16 * sc, 16), RED), 0, 0.37 * sc, 0), at(cyl(0.09 * sc, 0.12 * sc, 0.1 * sc, BLACK), 0, -0.34 * sc, 0)); t.position.x = x; return t; };
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xff9a2a, transparent: true, opacity: 0.9 });
+    const flame = (x: number) => { const f = mesh(new THREE.ConeGeometry(0.1 * sc, 0.5 * sc, 12).rotateX(Math.PI).translate(0, -0.25 * sc, 0), flameMat); f.position.set(x, -0.4 * sc, 0); return f; };
+    const fL = flame(-0.2 * sc), fR = flame(0.2 * sc);
+    set("jetpack", grp([0, A.chestY + 0.35, (A.bodyD + 0.18) * sc], tank(-0.2 * sc), tank(0.2 * sc), at(box(0.5 * sc, 0.1 * sc, 0.06 * sc, BLACK), 0, 0.1 * sc, -0.1 * sc), fL, fR));
+    anim.jetpack = (t, sp) => { const k = 0.5 + Math.min(sp / 14, 1) * 0.9 + Math.sin(t * 40) * 0.12; fL.scale.set(1, k, 1); fR.scale.set(1, k * (0.9 + Math.sin(t * 33) * 0.1), 1); };
+    // alas: abanico de plumas sobre la espalda, que aletean
     const wing = (s: number) => {
       const w = new THREE.Group();
-      const feather = (len: number, tilt: number, y: number) => {
-        const f = mesh(new THREE.SphereGeometry(1, 14, 8).scale(len, 0.13, 0.04).translate(s * len, 0, 0), WHITE);
-        f.rotation.z = s * tilt; f.position.y = y;
-        return f;
-      };
-      w.add(feather(0.6, 0.35, 0.1), feather(0.5, 0.05, -0.08), feather(0.38, -0.3, -0.24));
-      w.position.set(s * 0.12, 0, 0);
+      [[0.75, 52], [0.68, 30], [0.58, 8], [0.46, -14]].forEach(([len, deg]) => {
+        const f = mesh(new THREE.SphereGeometry(1, 16, 8).scale(len * sc, 0.1 * sc, 0.03).translate(s * len * sc, 0, 0), WHITE);
+        f.rotation.z = s * (deg * Math.PI) / 180;
+        w.add(f);
+      });
+      w.position.set(s * 0.34 * sc, 0, 0);
       return w;
     };
-    set("wings", grp([0, A.backTop - 0.35, A.bodyD + 0.05], wing(-1), wing(1)));
-    anim.wings = (t) => { const f = Math.sin(t * 9) * 0.35; accessories.wings.children[0].rotation.set(0, f, 0); accessories.wings.children[1].rotation.set(0, -f, 0); };
+    set("wings", grp([0, A.chestY + 0.4, (A.bodyD + 0.1) * sc], wing(-1), wing(1)));
+    anim.wings = (t) => { const f = Math.sin(t * 9) * 0.3; accessories.wings.children[0].rotation.set(0, f, 0); accessories.wings.children[1].rotation.set(0, -f, 0); };
     applyWorn();
   }
   function applyWorn() { for (const [id, o] of Object.entries(accessories)) o.visible = worn.includes(id); }
@@ -218,7 +271,7 @@ export function createHero(scene: THREE.Scene) {
 
   // ---------- Movimiento
   let blink = 2;
-  let skinHue = 0;
+  let skinHue = 0, cycle = false, metal = false;
   return {
     group: hero,
     /** Dónde salen las chispas. */
@@ -229,6 +282,9 @@ export function createHero(scene: THREE.Scene) {
       applyWorn();
       const skin = ids.map((id) => ITEMS.find((i) => i.id === id)).find((i) => i?.slot === "skin");
       skinHue = ((skin?.hue ?? 0) * Math.PI) / 180;
+      cycle = skin?.finish === "cycle";
+      SAT.value = skin?.finish === "metal" ? 0.12 : 1;
+      metal = skin?.finish === "metal"; bodyMat?.setMetal(metal);
     },
     update(s: HeroState) {
       const swing = Math.sin(s.T * 1.6) * 0.8;
@@ -263,7 +319,7 @@ export function createHero(scene: THREE.Scene) {
         sMouth.scale.set(s.sad > 0 ? 0.6 : 1 + s.boost * 0.8, s.sad > 0 ? 1 : 1 + s.boost * 3, 1);
       }
       // destello rojo al fallar (el color verde gira hasta el rojo)
-      HUE.value = skinHue + s.flash * -2.6;
+      HUE.value = (cycle ? s.time * 1.4 : skinHue) + s.flash * -2.6;
       // accesorios con vida propia
       for (const id of worn) anim[id]?.(s.time, s.speed);
     },

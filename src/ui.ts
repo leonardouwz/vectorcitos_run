@@ -3,7 +3,7 @@ import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
 import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
-import { ITEMS, SLOTS, SLOT_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
+import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
 import { FINGER_COLORS, FINGER_NAMES, fingerKeys, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
@@ -175,36 +175,56 @@ function guide(next: () => void) {
 let shopTab: Slot = "head";
 const SWATCH_BASE = 150; // el verde original, en grados de color
 
+let preview: string | null = null; // lo que se está probando en la tienda (se ve en Vectorcito antes de comprar)
 function shop() {
   world.theme("menu");
   world.mode("shop");
   const worn = store.worn;
   const items = ITEMS.filter((i) => i.slot === shopTab);
+  const sel = ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null;
+  const owned = ITEMS.filter((i) => store.owns(i.id)).length;
+  const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
+  const detail = (() => {
+    if (!sel) return `<p class="hint">${tr("shopHint")}</p>`;
+    const has = store.owns(sel.id), on = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
+    const btn = has ? `<button class="btn ${on ? "ghost" : ""}" id="act">${on ? tr("unequip") : tr("equip")}</button>`
+      : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
+      : `<button class="btn ghost-b" id="act" disabled>${ic("coin")} ${sel.price} · −${miss}</button>`;
+    return `<div class="detail ${rarityOf(sel.price)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
+      <div><em class="tier">${RARITY_NAMES[rarityOf(sel.price)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
+  })();
   show(`${toolbar()}
     <main class="wide shop">
       ${topbar(`${ic("shop")} ${tr("shop")}`, `${ic("coin")} ${store.coins}`)}
       <div class="shopbox">
+        ${detail}
         <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
         <div class="cards">${items.map((i) => {
-          const owned = store.owns(i.id), on = worn[i.slot] === i.id, afford = owned || store.coins >= i.price;
-          const art = i.hue !== undefined ? `<i class="swatch" style="background:hsl(${(SWATCH_BASE + i.hue + 360) % 360} 90% 55%)"></i>` : ic(i.icon);
-          return `<button class="card ${rarityOf(i.price)} ${on ? "wearing" : ""} ${owned ? "owned" : ""} ${afford ? "" : "cant"}" data-id="${i.id}" aria-pressed="${on}">
+          const has = store.owns(i.id), on = worn[i.slot] === i.id, isSel = sel?.id === i.id;
+          const art = i.hue !== undefined ? swatch(i) : ic(i.icon);
+          return `<button class="card ${rarityOf(i.price)} ${on ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
             <span class="art">${art}</span><b>${i.name[store.lang]}</b>
-            <small>${owned ? (on ? `✓ ${tr("wearing")}` : tr("equip")) : `${ic("coin")} ${i.price}`}</small></button>`;
+            <small>${has ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
         }).join("")}</div>
-        <p class="hint">${tr("shopHint")}</p>
+        <p class="hint">${owned} / ${ITEMS.length} ✦ ${tr("shopHint")}</p>
       </div>
     </main>`, (r) => {
     wireToolbar(r, shop);
-    on(r, "#back", () => { world.mode("menu"); levelMap(); });
-    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => { sfx.click(); shopTab = b.dataset.s as Slot; shop(); }));
-    r.querySelectorAll<HTMLElement>(".card").forEach((c) => c.addEventListener("click", () => {
-      const it = ITEMS.find((x) => x.id === c.dataset.id)!;
-      if (store.owns(it.id)) { sfx.click(); store.wear(it.slot, store.worn[it.slot] === it.id ? null : it.id); }
-      else if (store.buy(it.id)) { sfx.star(1); world.word(); toast(`${ic("coin")} ${tr("bought")} <b>${it.name[store.lang]}</b>`); }
-      else { sfx.error(); toast(tr("notEnough")); return; }
+    if (sel && !store.owns(sel.id)) world.dress({ ...worn, [sel.slot]: sel.id }); // probárselo antes de comprar
+    on(r, "#back", () => { preview = null; world.mode("menu"); levelMap(); });
+    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => { sfx.click(); shopTab = b.dataset.s as Slot; preview = null; shop(); }));
+    r.querySelectorAll<HTMLElement>(".card").forEach((c) => c.addEventListener("click", () => { sfx.click(); preview = c.dataset.id!; shop(); }));
+    on(r, "#act", () => {
+      if (!sel) return;
+      if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
+      else if (store.buy(sel.id)) {
+        const rar = rarityOf(sel.price);
+        if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
+        store.wear(sel.slot, sel.id);
+        toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
+      } else { sfx.error(); toast(tr("notEnough")); return; }
       shop();
-    }));
+    });
   });
 }
 
@@ -316,7 +336,7 @@ function info(l: Level) {
       <h2>${lvlName(l)} · ${tr(l.diff)}</h2>
       <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
       <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => info(l));
     on(r, "#back", levelMap);
@@ -518,7 +538,7 @@ function modeInfo(kind: "daily" | "time") {
       <p class="hint">${kind === "daily"
         ? `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}${done ? ` · ✓ ${tr("doneToday")} (${done.wpm} ${tr("wpmShort")})` : ""}`
         : `${tr("bestScore")}: ${store.bestTime || "–"}`}</p>
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => modeInfo(kind));
     on(r, "#back", levelMap);
@@ -599,9 +619,9 @@ function results(o: Outcome) {
       ${o.kind === "level" && !nextLevel && l && !l.free ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <p class="hint" id="sharenote" role="status"></p>
       <div class="row">
-        <button class="btn ghost-b" id="map">${tr("map")}</button>
-        <button class="btn ghost-b" id="retry">${tr("retry")}</button>
-        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
+        <button class="btn ghost-b-b" id="map">${tr("map")}</button>
+        <button class="btn ghost-b-b" id="retry">${tr("retry")}</button>
+        ${o.kind !== "daily" ? `<button class="btn ghost-b-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
         ${nextLevel && store.unlocked(nextLevel.id) ? `<button class="btn" id="next" data-focus>${tr("next")}</button>` : ""}
       </div>
     </main>`, (r) => {

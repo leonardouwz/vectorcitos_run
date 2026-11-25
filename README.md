@@ -40,7 +40,10 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Salir:** botón ✕ en el juego (en celular no hay tecla Esc). En horizontal, los teléfonos reciben un aviso para girar la pantalla.
 - **App instalable (PWA):** `public/manifest.webmanifest` y `public/sw.js` (abre sin conexión; nunca guarda `/api/`). Chrome/Edge ofrecen "Instalar la app"; en iPhone y iPad se explica cómo con Compartir → Añadir a pantalla de inicio.
 - **Iconos y vista previa:** icono provisional de Vectorcito (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, iconos 192/512 y adaptable) y `og-image.jpg` para WhatsApp, Telegram, X, Facebook, Discord... Se regeneran con `node scripts/make-assets.mjs` (necesita Playwright). Los datos de la página están en `index.html`; si cambia la dirección del sitio, hay que actualizar sus enlaces absolutos (`og:url`, `og:image`, `canonical`).
-- **Emojis:** los iconos del juego son de Fluent Emoji (Microsoft). `src/icons.ts` se genera con `node scripts/make-icons.mjs`; para cambiar de paquete o poner iconos propios basta editar ese script o los SVG de `src/icons.ts`.
+- **Iconos:** paquete propio de 48 stickers generado con Higgsfield (hojas en `assets/icon-sheets/`). `python3 scripts/slice-icons.py` los recorta a `public/icons/*.webp`; `src/icons.ts` los usa con `ic("nombre")`.
+- **Música:** cinco pistas instrumentales (menú, fácil, medio, difícil, práctica) en `public/audio/`, con bucle y fundido; si no cargan suena un arpegio generado en vivo.
+- **Cosméticos:** catálogo en `src/cosmetics.ts` (rarezas por precio, pieza 3D de cada accesorio en `src/hero.ts`, acabados cromado/arcoíris, estelas con forma). La tienda deja probarse todo antes de comprar.
+- **Guía de dedos:** foto de manos en `public/brand/manos.webp`.
 
 ## Ideas que vinieron del buzón
 - **Guía de dedos:** pantalla "Cómo colocar los dedos" (la primera vez y desde el mapa) y un teclado en el juego con el color de cada dedo y la próxima tecla resaltada (`src/keys.ts`). Se puede apagar con el botón ⌨️.
@@ -89,7 +92,6 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 Esta versión **no guarda contraseñas ni credenciales**. La versión original (2024, proyecto universitario) usaba una base de datos con una clave escrita en el código. Esa clave sigue visible en el historial de git: si alguna vez se usó en un servidor real, **cámbiala**.
 
 ## Créditos de terceros
-- **Fluent Emoji** © Microsoft, licencia MIT (iconos del juego).
 - **Three.js** (MIT), **Syne Mono** e **Inter** vía Fontsource (SIL Open Font License).
 - Los emojis de Apple no se incluyen: son propiedad de Apple y no se pueden redistribuir. En iPhone y iPad los emojis del sistema ya se ven con su estilo.
 
