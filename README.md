@@ -26,6 +26,13 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Contrarreloj:** 60 segundos, frases sin fin. Cada letra acertada suma 10 puntos y cada error resta 5.
 - Todas empiezan con cuenta regresiva (3, 2, 1, ¡YA!).
 
+## Personaje, ambiente y cosméticos
+- **Vectorcito 3D:** `public/models/vectorcito.glb` se generó con Higgsfield (modelo Meshy 7, imagen a 3D) a partir del dibujo `public/brand/vectorcito-front.png` y se redujo a 549 kB con `gltf-transform` (textura de 1024 px). `src/hero.ts` lo parte en cuerpo, brazos y piernas para animarlos y lo tiñe con un giro de color. Si el archivo no existe o falla, se dibuja un personaje sencillo.
+  - Para cambiarlo: reemplaza el `.glb` y ajusta las medidas de `MODEL` (y los cortes de brazos y piernas) en `src/hero.ts`.
+  - Se probó dar esqueleto y animación de correr con Higgsfield, pero el personaje es un bloque con extremidades diminutas y se deformaba; por eso se anima por partes.
+- **Ambiente:** `src/world.ts`. Cada dificultad tiene su look: atardecer en el mar con islas y nubes (fácil), montañas nevadas con luna y aurora (intermedio), ciudad de neón con sol rayado (difícil) y teclas flotantes (práctica). Hay líneas de velocidad y, en computador, brillo de neón. En teléfonos se reduce el detalle para cuidar la batería.
+- **Cosméticos:** `src/cosmetics.ts` (catálogo, precios y rareza) y `src/hero.ts` (modelos). Hay 14 accesorios, 5 colores y 3 estelas. Para añadir un accesorio: una entrada en el catálogo y su modelo en `rebuildAccessories()`.
+
 ## Móvil, tablet y app instalable
 - **Detecta desde dónde se juega** (`src/device.ts`): teléfono, tablet o computador, sistema (iOS, Android, Windows, Mac, Linux) y si ya está instalado como app. El resultado queda en `<html data-kind data-touch data-os>` y el CSS se adapta.
 - **Escritura táctil:** el teclado de pantalla se abre al tocar la frase. En pantalla táctil las letras se leen a medida que llegan (los teclados de teléfono mantienen la palabra "en composición"), y los errores hacen vibrar en Android.
@@ -65,7 +72,9 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 | `src/modes.ts` | Reto diario, días seguidos y frases de la contrarreloj |
 | `src/online.ts` | Envío y lectura del ranking |
 | `api/` | Buzón de sugerencias y ranking (funciones de Vercel) |
-| `src/scene.ts` | Escena 3D y personaje |
+| `src/scene.ts` | Escena 3D: cámara, brillo, chispas y ciclo de animación |
+| `src/world.ts` | Ambiente 3D de cada dificultad |
+| `src/hero.ts` | Personaje 3D, accesorios y colores |
 | `src/audio.ts` | Efectos y música |
 | `src/ui.ts`, `src/style.css` | Pantallas y estilo (ver la guía de marca) |
 

@@ -11,7 +11,7 @@ const NAMES = {
   party: "partying-face", tophat: "top-hat", crown: "crown", glasses: "glasses", shades: "smiling-face-with-sunglasses",
   bow: "ribbon", cape: "person-superhero", sound: "speaker-high-volume", mute: "muted-speaker", phone: "mobile-phone",
   wizard: "crystal-ball", halo: "baby-angel", headphones: "headphone", visor: "goggles", monocle: "face-with-monocle", scarf: "scarf",
-  wings: "dove", skin: "artist-palette", sparks: "sparkles", rainbow: "rainbow", hearts: "sparkling-heart", music: "musical-note", gem: "gem-stone",
+  wings: "dove", skin: "artist-palette", sparks: "sparkles", rainbow: "rainbow", hearts: "sparkling-heart", music: "guitar", gem: "gem-stone",
 };
 
 const set = JSON.parse(readFileSync(SET, "utf8"));

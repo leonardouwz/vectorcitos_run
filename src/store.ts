@@ -12,6 +12,7 @@ export interface Daily { streak: number; last: string; days: Record<string, DayR
 interface Data {
   lang: Lang;
   muted: boolean;
+  music: boolean;
   current: string;
   profiles: Record<string, Record<number, Best>>;
   history: Record<string, Run[]>;
@@ -27,7 +28,7 @@ interface Data {
 }
 
 const KEY = "vectorcitos-run:v2";
-let data: Data = { lang: detectLang(), muted: false, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {}, help: true, guideSeen: {}, coins: {}, owned: {}, worn: {}, gift: {} };
+let data: Data = { lang: detectLang(), muted: false, music: true, current: "", profiles: {}, history: {}, time: {}, daily: {}, online: {}, help: true, guideSeen: {}, coins: {}, owned: {}, worn: {}, gift: {} };
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) data = { ...data, ...JSON.parse(raw) };
@@ -38,6 +39,8 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } ca
 export const store = {
   get lang() { return data.lang; },
   set lang(v: Lang) { data.lang = v; save(); },
+  get music() { return data.music; },
+  set music(v: boolean) { data.music = v; save(); },
   get muted() { return data.muted; },
   set muted(v: boolean) { data.muted = v; save(); },
   get current() { return data.current; },

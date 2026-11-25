@@ -4,6 +4,7 @@ let ctx: AudioContext | null = null;
 let master: GainNode;
 let noise: AudioBuffer;
 let muted = false;
+let musicOn = true;
 
 function ensure() {
   if (!ctx) {
@@ -78,6 +79,7 @@ let musicTimer = 0;
 let step = 0;
 
 function beat() {
+  if (!musicOn) return;
   const s = step++;
   const bass = [0, 0, 5, 3][Math.floor(s / 8) % 4];
   if (s % 8 === 0) tone(mood.root * 2 ** (bass / 12), 0.9, "sine", 0.16);
@@ -96,4 +98,5 @@ export const music = {
 };
 
 export function setMuted(m: boolean) { muted = m; }
+export function setMusicOn(on: boolean) { musicOn = on; }
 export const unlockAudio = () => { ensure(); };

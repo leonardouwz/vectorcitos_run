@@ -45,6 +45,7 @@ const D = {
     guidePhone: "Estás en un teléfono: sostenlo con las dos manos y escribe con los pulgares. La guía de diez dedos es para cuando uses un teclado físico.",
     guideTablet: "Estás en una tablet: apóyala y escribe con las dos manos. Si conectas un teclado, esta guía te sirve para escribir con los diez dedos.",
     install: "Instalar la app", installIos: "En iPhone o iPad: pulsa Compartir y luego «Añadir a pantalla de inicio».",
+    switchPlayer: "Cambiar jugador", music: "Música", bought: "¡Comprado!", todayHello: "Hola",
     msg1: "Casi. Intenta de nuevo.", msg2: "¡Muy bien!", msg3: "¡Perfecto!",
   },
   en: {
@@ -91,6 +92,7 @@ const D = {
     guidePhone: "You are on a phone: hold it with both hands and type with your thumbs. The ten-finger guide is for when you use a physical keyboard.",
     guideTablet: "You are on a tablet: rest it and type with both hands. If you connect a keyboard, this guide helps you type with all ten fingers.",
     install: "Install the app", installIos: "On iPhone or iPad: tap Share, then \"Add to Home Screen\".",
+    switchPlayer: "Switch player", music: "Music", bought: "Bought!", todayHello: "Hi",
     msg1: "Almost. Try again.", msg2: "Nice work!", msg3: "Perfect!",
   },
 } as const;
