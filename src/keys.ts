@@ -1,7 +1,7 @@
 import type { Lang } from "./content";
 
 /** Dedos: 0-3 mano izquierda (meñique → índice), 4-7 mano derecha (índice → meñique), 8 pulgares. */
-export const FINGER_COLORS = ["#ff7070", "#ffa94d", "#ffea85", "#a3ffa3", "#6ab7ff", "#b69cff", "#ff8ad6", "#5fe0d0", "#eaeaea"];
+export const FINGER_COLORS = ["#ff3040", "#ff9a1a", "#ffdc1a", "#8aff1a", "#2a8cff", "#a447e6", "#ff74cc", "#1de5d8", "#f4f4ff"];
 export const FINGER_NAMES: Record<Lang, string[]> = {
   es: ["Meñique izquierdo", "Anular izquierdo", "Medio izquierdo", "Índice izquierdo", "Índice derecho", "Medio derecho", "Anular derecho", "Meñique derecho", "Pulgares"],
   en: ["Left pinky", "Left ring", "Left middle", "Left index", "Right index", "Right middle", "Right ring", "Right pinky", "Thumbs"],
@@ -39,6 +39,14 @@ export function locate(ch: string, lang: Lang): Loc | null {
 }
 
 const stripAccent = (c: string) => (c === "ñ" ? c : c.normalize("NFD").replace(/[̀-ͯ]/g, ""));
+
+/** Qué teclas toca cada dedo (según la distribución del idioma), para la guía de dedos. */
+export function fingerKeys(lang: Lang): string[][] {
+  const out: string[][] = Array.from({ length: 9 }, () => []);
+  rows(lang).forEach((row) => [...row].forEach((c, col) => out[COL_FINGER[col]].push(c.toUpperCase())));
+  out[8].push(lang === "es" ? "ESPACIO" : "SPACE");
+  return out;
+}
 
 /** Teclado dibujado con HTML: cada tecla lleva el color de su dedo. */
 export function keyboardHtml(lang: Lang) {

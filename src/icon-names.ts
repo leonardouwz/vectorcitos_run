@@ -1,0 +1,3 @@
+// Generado por scripts/slice-icons.py: los nombres de los iconos de public/icons.
+export const ICON_NAMES = ["game", "locked", "daily", "fire", "time", "progress", "rank", "world", "room", "box", "hands", "kbd", "shop", "gift", "coin", "challenge", "win", "sound", "mute", "music", "phone", "gem", "skin", "star", "party", "catears", "headphones", "tophat", "wizard", "halo", "crown", "spacehelmet", "glasses", "mustache", "monocle", "shades", "visor", "bow", "scarf", "cape", "wings", "jetpack", "sparks", "hearts", "stars", "flames", "rainbow", "paint"] as const;
+export type IconName = (typeof ICON_NAMES)[number];

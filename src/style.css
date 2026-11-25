@@ -187,3 +187,57 @@ html[data-kind="phone"] .stats dd { font-size: 1.4rem; }
 .tips { font: 400 1.02rem/1.65 var(--sans); margin: 0; max-width: 70ch; }
 html[data-kind="phone"] .streak .lbl { display: none; }
 html[data-kind="phone"] .bar h3 { font-size: 1rem; }
+#kbdbox { margin-top: auto; display: grid; justify-items: center; }
+
+/* Encabezado común, avisos, tienda y detalles de la interfaz */
+.top { display: flex; align-items: center; gap: .8rem; background: rgb(26 26 64 / .88); backdrop-filter: blur(6px); border-bottom: 2px solid var(--neon); border-radius: 10px 10px 0 0; padding: .55rem .9rem; }
+.top h2 { font-size: clamp(1.15rem, 3.4vw, 1.7rem); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.top .right { color: var(--suave); font-family: var(--mono); white-space: nowrap; display: inline-flex; align-items: center; gap: .3rem; }
+.top .back { font: 400 1.4rem var(--mono); color: var(--neon); background: rgb(10 10 53 / .8); border: 1px solid var(--linea); border-radius: 8px; width: 2.6rem; height: 2.6rem; cursor: pointer; flex: none; }
+.top .back:hover { border-color: var(--neon); }
+.whochip { font-family: var(--mono); color: var(--suave); background: rgb(10 10 53 / .8); border: 1px solid var(--linea); border-radius: 999px; padding: .25rem .9rem; display: inline-flex; gap: .3rem; align-items: center; }
+#toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50; background: rgb(10 10 53 / .96); border: 1px solid var(--neon); border-radius: 999px; padding: .6rem 1.2rem; font-family: var(--mono); box-shadow: 0 0 24px rgb(23 255 147 / .3); display: flex; gap: .4rem; align-items: center; transition: opacity .2s, transform .2s; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+.tab small { color: inherit; opacity: .65; font-size: .75em; margin-left: .25rem; }
+.shopbox .tabs { margin-bottom: .2rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: .6rem; }
+.card { --rc: var(--linea); display: grid; justify-items: center; gap: .25rem; padding: .7rem .5rem; border-radius: 12px; background: rgb(10 10 53 / .9); border: 2px solid var(--rc); color: var(--hielo); font: 400 .95rem var(--mono); cursor: pointer; transition: transform .12s, box-shadow .12s; text-align: center; }
+.card:hover { transform: translateY(-3px); }
+.card.rare { --rc: #5aa9ff; } .card.epic { --rc: #c58bff; box-shadow: 0 0 14px rgb(197 139 255 / .25); }
+.card .art { height: 2.8rem; display: grid; place-items: center; } .card .art .ic { width: 2.6rem; height: 2.6rem; }
+.card b { font-weight: 400; line-height: 1.15; } .card small { color: var(--suave); font-family: var(--sans); display: inline-flex; gap: .25rem; align-items: center; }
+.card.wearing { background: rgb(23 255 147 / .12); border-color: var(--neon); } .card.wearing small { color: var(--neon); }
+.card.cant { opacity: .55; }
+.swatch { display: block; width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 3px solid rgb(255 255 255 / .85); box-shadow: 0 0 14px rgb(255 255 255 / .2); }
+.lvl small { font: 400 .75rem var(--sans); opacity: .75; min-height: 1em; }
+.lvl.open:hover { box-shadow: 0 0 22px rgb(23 255 147 / .45); }
+.mode { transition: transform .12s, border-color .12s; } .mode:hover { transform: translateY(-2px); }
+.mode .ic { width: 1.35em; height: 1.35em; }
+html[data-kind="phone"] .cards { grid-template-columns: repeat(3, 1fr); }
+html[data-kind="phone"] .card { padding: .5rem .25rem; font-size: .8rem; }
+html[data-kind="phone"] .top { padding: .45rem .6rem; gap: .5rem; }
+/* Guía de dedos con foto */
+.hands { margin: 0; display: grid; gap: .5rem; }
+.hands img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--linea); box-shadow: 0 0 30px rgb(23 255 147 / .12); }
+.hands figcaption { color: var(--suave); font-size: .92rem; text-align: center; }
+.legend li { align-items: flex-start; } .legend li > span { display: grid; line-height: 1.25; } .legend li small { color: var(--suave); font-family: var(--mono); letter-spacing: .06em; }
+.legend i { margin-top: .2rem; width: 1.1rem; height: 1.1rem; flex: none; }
+
+/* Tienda: ficha del artículo, rarezas y brillos */
+.detail { --rc: var(--linea); display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center; padding: .7rem .9rem; margin-bottom: .7rem; border-radius: 14px; background: rgb(10 10 53 / .92); border: 2px solid var(--rc); }
+.detail.rare { --rc: #5aa9ff; } .detail.epic { --rc: #c58bff; box-shadow: 0 0 18px rgb(197 139 255 / .3); }
+.detail.legendary { --rc: #ffc107; box-shadow: 0 0 26px rgb(255 193 7 / .4); background: linear-gradient(120deg, rgb(10 10 53 / .92), rgb(80 50 0 / .55)); }
+.detail .art .ic { width: 3.4rem; height: 3.4rem; } .detail .art .swatch { width: 3rem; height: 3rem; }
+.detail b { display: block; font: 400 1.15rem var(--mono); } .detail small { color: var(--suave); font-family: var(--sans); display: block; }
+.tier { font: 400 .72rem var(--mono); font-style: normal; text-transform: uppercase; letter-spacing: .12em; color: var(--rc); }
+.btn.buy { box-shadow: 0 0 18px rgb(23 255 147 / .45); animation: pulse 1.6s infinite; }
+.btn:disabled { opacity: .6; cursor: not-allowed; animation: none; }
+@keyframes pulse { 50% { box-shadow: 0 0 28px rgb(23 255 147 / .8); } }
+.card.legendary { --rc: #ffc107; box-shadow: 0 0 16px rgb(255 193 7 / .35); background: linear-gradient(160deg, rgb(10 10 53 / .9), rgb(90 60 0 / .5)); }
+.card.sel { transform: translateY(-3px) scale(1.03); outline: 2px solid var(--hielo); outline-offset: 2px; }
+.card.owned small { color: var(--neon); }
+.swatch.chrome { background: linear-gradient(135deg, #fff, #8a93a8 40%, #e9eeff 60%, #6b7385); }
+.swatch.cycle { background: conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red); animation: spin 4s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn.buy, .swatch.cycle { animation: none; } }
+html[data-kind="phone"] .detail { grid-template-columns: auto 1fr; } html[data-kind="phone"] .detail .btn { grid-column: 1 / -1; }

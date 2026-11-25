@@ -3,13 +3,13 @@ import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
 import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
-import { ITEMS, SLOTS, SLOT_NAMES, coinsFor } from "./cosmetics";
+import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
-import { FINGER_COLORS, FINGER_NAMES, highlightKey, keyboardHtml } from "./keys";
+import { FINGER_COLORS, FINGER_NAMES, fingerKeys, highlightKey, keyboardHtml } from "./keys";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { store } from "./store";
-import { music, setMuted, sfx, unlockAudio } from "./audio";
+import { music, setMusicOn, setMuted, sfx, unlockAudio } from "./audio";
 import type { createScene } from "./scene";
 
 type World = ReturnType<typeof createScene>;
@@ -41,8 +41,24 @@ const on = (root: HTMLElement, sel: string, fn: () => void) =>
 const toolbar = () => `
   <div class="toolbar">
     <button class="ghost" data-act="lang" aria-label="${tr("lang")}">${store.lang === "es" ? "EN" : "ES"}</button>
+    <button class="ghost" data-act="music" aria-label="${tr("music")}" aria-pressed="${store.music}">${ic("music")}</button>
     <button class="ghost" data-act="sound" aria-label="${tr("sound")}" aria-pressed="${!store.muted}">${ic(store.muted ? "mute" : "sound")}</button>
   </div>`;
+
+/** Encabezado común: volver, título y algo a la derecha (monedas, jugador...). */
+const topbar = (title: string, right = "", back = true) =>
+  `<header class="top">${back ? `<button class="back" id="back" aria-label="${tr("back")}">←</button>` : ""}<h2>${title}</h2><span class="right">${right}</span></header>`;
+
+/** Aviso breve abajo de la pantalla. Vive fuera de #app para sobrevivir al cambio de pantalla. */
+let toastTimer = 0;
+function toast(html: string) {
+  let el = document.getElementById("toast");
+  if (!el) { el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+  el.innerHTML = html;
+  el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => el!.classList.remove("show"), 2600);
+}
 
 function wireToolbar(root: HTMLElement, rerender: () => void) {
   root.querySelector('[data-act="lang"]')?.addEventListener("click", () => {
@@ -50,9 +66,16 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
     document.documentElement.lang = store.lang;
     rerender();
   });
+  root.querySelector('[data-act="music"]')?.addEventListener("click", () => {
+    store.music = !store.music;
+    setMusicOn(store.music);
+    if (store.music && !store.muted) { unlockAudio(); music.start(); }
+    rerender();
+  });
   root.querySelector('[data-act="sound"]')?.addEventListener("click", () => {
     store.muted = !store.muted;
     setMuted(store.muted);
+  setMusicOn(store.music);
     if (!store.muted) { unlockAudio(); music.start(); }
     rerender();
   });
@@ -82,15 +105,25 @@ export function home() {
     <main class="center plain">
       <h1 class="logo">VECTORCITOS<span>RUN<i class="cursor"></i></span></h1>
       <p class="tag">${tr("tagline")}</p>
+      ${store.current ? `<div class="whochip">${esc(store.current)} · ${ic("coin")} ${store.coins}${store.dailyStreak ? ` · ${ic("fire")} ${store.dailyStreak}` : ""}</div>` : ""}
       ${pending ? `<div class="banner">${ic("challenge")} <b>${esc(pending.nick)}</b> ${tr("challengeBy")} ${esc(pending.kind === "time" ? tr("timeAttack") : lvlName(LEVELS.find((l) => l.id === pending!.id)!))}: ${pending.wpm} ${tr("wpmShort")} · ${pending.acc}%</div>` : ""}
       <button class="btn big" id="play" data-focus>${pending ? tr("acceptChallenge") : tr("play")}</button>
       <div id="installslot" class="installslot"></div>
-      <button class="ghost" id="box">${ic("box")} ${tr("box")}</button>
+      <div class="row">
+        ${store.current ? `<button class="ghost" id="switch">${tr("switchPlayer")}</button>` : ""}
+        <button class="ghost" id="box">${ic("box")} ${tr("box")}</button>
+      </div>
     </main>`, (r) => {
     wireToolbar(r, home);
     on(r, "#box", () => suggest(home));
+    on(r, "#switch", profile);
     renderInstall();
-    on(r, "#play", () => { unlockAudio(); music.start(); if (pending && store.current) startChallenge(); else profile(); });
+    on(r, "#play", () => {
+      unlockAudio(); music.start();
+      if (!store.current) return profile();
+      const after = pending ? startChallenge : levelMap;
+      if (store.guideSeen) after(); else guide(after);
+    });
   });
 }
 
@@ -122,52 +155,76 @@ function profile() {
 }
 
 function guide(next: () => void) {
-  const names = FINGER_NAMES[store.lang];
+  const names = FINGER_NAMES[store.lang], keys = fingerKeys(store.lang);
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${ic("hands")} ${tr("guide")}</h2></header>
+      ${topbar(`${ic("hands")} ${tr("guide")}`, "", false)}
       <section class="panel">
         ${device.kind !== "desktop" ? `<p class="deviceTip">${ic(device.kind === "phone" ? "phone" : "kbd")} ${tr(device.kind === "phone" ? "guidePhone" : "guideTablet")}</p>` : ""}
-        ${keyboardHtml(store.lang)}
+        <figure class="hands"><img src="/brand/manos.webp" width="1200" height="672" alt="${esc(tr("guideImgAlt"))}" /><figcaption>${tr("guideCaption")}</figcaption></figure>
+        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i><span><b>${n}</b><small>${tr("keysOf")}: ${keys[i].join(" ")}</small></span></li>`).join("")}</ul>
         <p class="tips">${tr("guideTips")}</p>
-        <ul class="legend">${names.map((n, i) => `<li><i style="background:${FINGER_COLORS[i]}"></i>${n}</li>`).join("")}</ul>
       </section>
       <button class="btn" id="ok" data-focus style="align-self:center">${tr("guideOk")}</button>
     </main>`, (r) => {
     wireToolbar(r, () => guide(next));
-    r.querySelectorAll(".k.home").forEach((k) => k.classList.add("next")); // F y J, para que se vea dónde van los índices
     on(r, "#ok", () => { store.markGuide(); next(); });
   });
 }
 
+let shopTab: Slot = "head";
+const SWATCH_BASE = 150; // el verde original, en grados de color
+
+let preview: string | null = null; // lo que se está probando en la tienda (se ve en Vectorcito antes de comprar)
 function shop() {
   world.theme("menu");
   world.mode("shop");
   const worn = store.worn;
+  const items = ITEMS.filter((i) => i.slot === shopTab);
+  const sel = ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null;
+  const owned = ITEMS.filter((i) => store.owns(i.id)).length;
+  const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
+  const detail = (() => {
+    if (!sel) return `<p class="hint">${tr("shopHint")}</p>`;
+    const has = store.owns(sel.id), on = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
+    const btn = has ? `<button class="btn ${on ? "ghost" : ""}" id="act">${on ? tr("unequip") : tr("equip")}</button>`
+      : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
+      : `<button class="btn ghost-b" id="act" disabled>${ic("coin")} ${sel.price} · −${miss}</button>`;
+    return `<div class="detail ${rarityOf(sel.price)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
+      <div><em class="tier">${RARITY_NAMES[rarityOf(sel.price)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
+  })();
   show(`${toolbar()}
     <main class="wide shop">
-      <header class="bar"><h2>${ic("shop")} ${tr("shop")}</h2><span class="who">${ic("coin")} ${store.coins}</span></header>
-      <p class="hint">${tr("shopHint")}</p>
+      ${topbar(`${ic("shop")} ${tr("shop")}`, `${ic("coin")} ${store.coins}`)}
       <div class="shopbox">
-        ${SLOTS.map((slot) => `<section class="slot"><h3>${SLOT_NAMES[slot][store.lang]}</h3>${ITEMS.filter((i) => i.slot === slot).map((i) => {
-          const owned = store.owns(i.id), on = worn[slot] === i.id;
-          const action = owned ? (on ? "off" : "on") : "buy";
-          const afford = owned || store.coins >= i.price;
-          return `<div class="item ${on ? "wearing" : ""}"><span class="em">${ic(i.icon)}</span><span class="nm">${i.name[store.lang]}</span>
-            <span class="pr">${owned ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</span>
-            <button class="btn small" data-act="${action}" data-id="${i.id}" data-slot="${slot}" ${afford ? "" : `disabled title="${tr("notEnough")}"`}>${owned ? (on ? tr("unequip") : tr("equip")) : tr("buy")}</button></div>`;
-        }).join("")}</section>`).join("")}
+        ${detail}
+        <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
+        <div class="cards">${items.map((i) => {
+          const has = store.owns(i.id), on = worn[i.slot] === i.id, isSel = sel?.id === i.id;
+          const art = i.hue !== undefined ? swatch(i) : ic(i.icon);
+          return `<button class="card ${rarityOf(i.price)} ${on ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
+            <span class="art">${art}</span><b>${i.name[store.lang]}</b>
+            <small>${has ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
+        }).join("")}</div>
+        <p class="hint">${owned} / ${ITEMS.length} ✦ ${tr("shopHint")}</p>
       </div>
-      <button class="ghost" id="back" style="align-self:flex-start">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, shop);
-    on(r, "#back", () => { world.mode("menu"); levelMap(); });
-    r.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => b.addEventListener("click", () => {
-      const { act, id, slot } = b.dataset as { act: string; id: string; slot: (typeof SLOTS)[number] };
-      if (act === "buy") { if (!store.buy(id)) return; sfx.star(1); world.word(); }
-      else { sfx.click(); store.wear(slot, act === "on" ? id : null); }
+    if (sel && !store.owns(sel.id)) world.dress({ ...worn, [sel.slot]: sel.id }); // probárselo antes de comprar
+    on(r, "#back", () => { preview = null; world.mode("menu"); levelMap(); });
+    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => { sfx.click(); shopTab = b.dataset.s as Slot; preview = null; shop(); }));
+    r.querySelectorAll<HTMLElement>(".card").forEach((c) => c.addEventListener("click", () => { sfx.click(); preview = c.dataset.id!; shop(); }));
+    on(r, "#act", () => {
+      if (!sel) return;
+      if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
+      else if (store.buy(sel.id)) {
+        const rar = rarityOf(sel.price);
+        if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
+        store.wear(sel.slot, sel.id);
+        toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
+      } else { sfx.error(); toast(tr("notEnough")); return; }
       shop();
-    }));
+    });
   });
 }
 
@@ -182,10 +239,9 @@ function startChallenge() {
 function levelMap() {
   world.theme(tab);
   world.mode("menu");
-  const done = LEVELS.filter((l) => store.best(l.id)).length;
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${tr("pick")}</h2><span class="who">${esc(store.current)} · ${done}/${LEVELS.length} · ${ic("coin")} ${store.coins}</span></header>
+      ${topbar(tr("pick"), `${esc(store.current)} · ${ic("coin")} ${store.coins}`)}
       <div class="modes">
         ${store.giftReady ? `<button class="mode gift" id="gift"><b>${ic("gift")} ${tr("giftDay")}</b><small>+${store.giftAmount} ${ic("coin")}</small></button>` : ""}
         <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coins}</small></button>
@@ -196,22 +252,24 @@ function levelMap() {
         <button class="mode" id="hands"><b>${ic("hands")} ${tr("guide")}</b></button>
         <button class="mode" id="box"><b>${ic("box")} ${tr("box")}</b></button>
       </div>
-      <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
+      <div class="tabs" role="tablist">${DIFFS.map((d) => {
+        const all = LEVELS.filter((l) => l.diff === d), got = all.filter((l) => store.best(l.id)).length;
+        return `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)} <small>${got}/${all.length}</small></button>`;
+      }).join("")}</div>
       <div class="grid">${LEVELS.filter((l) => l.diff === tab).map((l) => {
         const open = store.unlocked(l.id), b = store.best(l.id);
         return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
-          <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : ""}</span></button>`;
+          <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : "&nbsp;"}</span><small>${b ? `${b.wpm} ${tr("wpmShort")}` : "&nbsp;"}</small></button>`;
       }).join("")}</div>
-      <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, levelMap);
-    on(r, "#back", profile);
+    on(r, "#back", home);
     on(r, "#prog", progress);
     on(r, "#rank", () => ranking("daily", "world"));
     on(r, "#box", () => suggest(levelMap));
     on(r, "#hands", () => guide(levelMap));
     on(r, "#shop", shop);
-    on(r, "#gift", () => { store.claimGift(); sfx.fanfare(); world.win(); levelMap(); });
+    on(r, "#gift", () => { const n = store.claimGift(); sfx.fanfare(); world.win(); levelMap(); toast(`${ic("gift")} ${tr("giftGot")} <b>+${n}</b> ${ic("coin")}`); });
     on(r, "#m-daily", () => modeInfo("daily"));
     on(r, "#m-time", () => modeInfo("time"));
     r.querySelectorAll<HTMLElement>(".tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); tab = b.dataset.d as Diff; levelMap(); }));
@@ -250,7 +308,7 @@ function progress() {
   }).join("");
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${tr("progress")}</h2><span class="who">${esc(store.current)}</span></header>
+      ${topbar(`${ic("progress")} ${tr("progress")}`, esc(store.current))}
       ${runs.length === 0 ? `<p class="tag" style="margin:2rem auto">${tr("noRuns")}</p>` : `
       <dl class="stats wide-stats">
         <div><dt>${tr("runs")}</dt><dd>${runs.length}</dd></div>
@@ -265,7 +323,6 @@ function progress() {
       </div>
       ${hardest.length ? `<section class="panel"><h3>${tr("hardKeys")}</h3><div class="chips">${hardest.map(([k, n]) => `<span class="chip key">${esc(k === " " ? "␣" : k)} <small>×${n}</small></span>`).join("")}</div></section>` : ""}
       <section class="panel"><h3>${tr("recent")}</h3><ul class="runs">${rows}</ul></section>`}
-      <button class="ghost" id="back" style="align-self:flex-start">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, progress);
     on(r, "#back", levelMap);
@@ -279,7 +336,7 @@ function info(l: Level) {
       <h2>${lvlName(l)} · ${tr(l.diff)}</h2>
       <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
       <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => info(l));
     on(r, "#back", levelMap);
@@ -301,6 +358,7 @@ interface RunCfg {
 function run(cfg: RunCfg) {
   world.theme(cfg.diff);
   world.mode("play");
+  world.layout(store.help && physicalKeys());
   music.mood(cfg.diff);
   show(`<main class="play">
       <header class="bar"><h3>${esc(cfg.title)}</h3><span class="streak" id="streak" hidden></span>${physicalKeys() ? `<button class="ghost" id="helpbtn" aria-pressed="${store.help}" aria-label="${tr("help")}" title="${tr("help")}">${ic("kbd")}</button>` : ""}<span class="clock" id="clock">${cfg.limit ?? 0}s</span><button class="ghost exit" id="exitbtn" aria-label="${tr("exitGame")}" title="${tr("exitGame")}">✕</button></header>
@@ -384,6 +442,7 @@ function run(cfg: RunCfg) {
       store.help = !store.help;
       helpBtn.setAttribute("aria-pressed", String(store.help));
       kbdbox.innerHTML = store.help ? keyboardHtml(store.lang) : "";
+      world.layout(store.help);
       highlightKey(kbdbox, cur.current, store.lang);
       focus();
     });
@@ -479,7 +538,7 @@ function modeInfo(kind: "daily" | "time") {
       <p class="hint">${kind === "daily"
         ? `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}${done ? ` · ✓ ${tr("doneToday")} (${done.wpm} ${tr("wpmShort")})` : ""}`
         : `${tr("bestScore")}: ${store.bestTime || "–"}`}</p>
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => modeInfo(kind));
     on(r, "#back", levelMap);
@@ -560,9 +619,9 @@ function results(o: Outcome) {
       ${o.kind === "level" && !nextLevel && l && !l.free ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <p class="hint" id="sharenote" role="status"></p>
       <div class="row">
-        <button class="btn ghost-b" id="map">${tr("map")}</button>
-        <button class="btn ghost-b" id="retry">${tr("retry")}</button>
-        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
+        <button class="btn ghost-b-b" id="map">${tr("map")}</button>
+        <button class="btn ghost-b-b" id="retry">${tr("retry")}</button>
+        ${o.kind !== "daily" ? `<button class="btn ghost-b-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
         ${nextLevel && store.unlocked(nextLevel.id) ? `<button class="btn" id="next" data-focus>${tr("next")}</button>` : ""}
       </div>
     </main>`, (r) => {
@@ -606,7 +665,7 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
   if (scope === "room" && !o.room) scope = "world";
   show(`${toolbar()}
     <main class="wide">
-      <header class="bar"><h2>${ic("rank")} ${tr("ranking")}</h2><span class="who">${esc(store.current)}</span></header>
+      ${topbar(`${ic("rank")} ${tr("ranking")}`, esc(store.current))}
       <section class="panel">
         <label class="check"><input type="checkbox" id="on" ${o.on ? "checked" : ""}> ${tr("appearAs")} <b>${esc(store.current)}</b></label>
         <form id="rf" class="row-form">
@@ -624,7 +683,7 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
         ${o.room ? `<button class="tab" data-s="room" aria-selected="${scope === "room"}">${ic("room")} ${esc(o.room)}</button>` : ""}
       </div>
       <ol class="board" id="board"><li class="hint">…</li></ol>
-      <div class="row"><button class="ghost" id="back">${tr("back")}</button><button class="ghost" id="forget">${tr("forgetBtn")}</button></div>
+      <div class="row"><button class="ghost" id="forget">${tr("forgetBtn")}</button></div>
       <p class="hint" id="note" role="status"></p>
     </main>`, (r) => {
     wireToolbar(r, () => ranking(board, scope));
@@ -662,7 +721,7 @@ function suggest(back: () => void) {
   const kinds = [["idea", "catIdea"], ["bug", "catBug"], ["other", "catOther"]] as const;
   show(`${toolbar()}
     <main class="center form">
-      <h2>${ic("box")} ${tr("box")}</h2>
+      ${topbar(`${ic("box")} ${tr("box")}`)}
       <p class="hint">${tr("boxIntro")}</p>
       <form id="f" class="stack" novalidate>
         <div class="tabs" role="radiogroup">${kinds.map(([k, key]) => `<button type="button" role="radio" class="tab" data-k="${k}" aria-checked="${k === cat}">${tr(key)}</button>`).join("")}</div>
@@ -673,7 +732,6 @@ function suggest(back: () => void) {
         <button class="btn" id="send" type="submit">${tr("send")}</button>
         <p class="hint">${tr("boxPrivacy")}</p>
       </form>
-      <button class="ghost" id="back">${tr("back")}</button>
     </main>`, (r) => {
     wireToolbar(r, () => suggest(back));
     on(r, "#back", back);

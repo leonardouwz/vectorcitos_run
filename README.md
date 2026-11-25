@@ -26,6 +26,13 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Contrarreloj:** 60 segundos, frases sin fin. Cada letra acertada suma 10 puntos y cada error resta 5.
 - Todas empiezan con cuenta regresiva (3, 2, 1, ¡YA!).
 
+## Personaje, ambiente y cosméticos
+- **Vectorcito 3D:** `public/models/vectorcito.glb` se generó con Higgsfield (modelo Meshy 7, imagen a 3D) a partir del dibujo `public/brand/vectorcito-front.png` y se redujo a 549 kB con `gltf-transform` (textura de 1024 px). `src/hero.ts` lo parte en cuerpo, brazos y piernas para animarlos y lo tiñe con un giro de color. Si el archivo no existe o falla, se dibuja un personaje sencillo.
+  - Para cambiarlo: reemplaza el `.glb` y ajusta las medidas de `MODEL` (y los cortes de brazos y piernas) en `src/hero.ts`.
+  - Se probó dar esqueleto y animación de correr con Higgsfield, pero el personaje es un bloque con extremidades diminutas y se deformaba; por eso se anima por partes.
+- **Ambiente:** `src/world.ts`. Cada dificultad tiene su look: atardecer en el mar con islas y nubes (fácil), montañas nevadas con luna y aurora (intermedio), ciudad de neón con sol rayado (difícil) y teclas flotantes (práctica). Hay líneas de velocidad y, en computador, brillo de neón. En teléfonos se reduce el detalle para cuidar la batería.
+- **Cosméticos:** `src/cosmetics.ts` (catálogo, precios y rareza) y `src/hero.ts` (modelos). Hay 14 accesorios, 5 colores y 3 estelas. Para añadir un accesorio: una entrada en el catálogo y su modelo en `rebuildAccessories()`.
+
 ## Móvil, tablet y app instalable
 - **Detecta desde dónde se juega** (`src/device.ts`): teléfono, tablet o computador, sistema (iOS, Android, Windows, Mac, Linux) y si ya está instalado como app. El resultado queda en `<html data-kind data-touch data-os>` y el CSS se adapta.
 - **Escritura táctil:** el teclado de pantalla se abre al tocar la frase. En pantalla táctil las letras se leen a medida que llegan (los teclados de teléfono mantienen la palabra "en composición"), y los errores hacen vibrar en Android.
@@ -33,11 +40,14 @@ Escribe la frase completa, letra por letra, directamente con el teclado (sin caj
 - **Salir:** botón ✕ en el juego (en celular no hay tecla Esc). En horizontal, los teléfonos reciben un aviso para girar la pantalla.
 - **App instalable (PWA):** `public/manifest.webmanifest` y `public/sw.js` (abre sin conexión; nunca guarda `/api/`). Chrome/Edge ofrecen "Instalar la app"; en iPhone y iPad se explica cómo con Compartir → Añadir a pantalla de inicio.
 - **Iconos y vista previa:** icono provisional de Vectorcito (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, iconos 192/512 y adaptable) y `og-image.jpg` para WhatsApp, Telegram, X, Facebook, Discord... Se regeneran con `node scripts/make-assets.mjs` (necesita Playwright). Los datos de la página están en `index.html`; si cambia la dirección del sitio, hay que actualizar sus enlaces absolutos (`og:url`, `og:image`, `canonical`).
-- **Emojis:** los iconos del juego son de Fluent Emoji (Microsoft). `src/icons.ts` se genera con `node scripts/make-icons.mjs`; para cambiar de paquete o poner iconos propios basta editar ese script o los SVG de `src/icons.ts`.
+- **Iconos:** paquete propio de 48 stickers generado con Higgsfield (hojas en `assets/icon-sheets/`). `python3 scripts/slice-icons.py` los recorta a `public/icons/*.webp`; `src/icons.ts` los usa con `ic("nombre")`.
+- **Música:** cinco pistas instrumentales (menú, fácil, medio, difícil, práctica) en `public/audio/`, con bucle y fundido; si no cargan suena un arpegio generado en vivo.
+- **Cosméticos:** catálogo en `src/cosmetics.ts` (rarezas por precio, pieza 3D de cada accesorio en `src/hero.ts`, acabados cromado/arcoíris, estelas con forma). La tienda deja probarse todo antes de comprar.
+- **Guía de dedos:** foto de manos en `public/brand/manos.webp`.
 
 ## Ideas que vinieron del buzón
 - **Guía de dedos:** pantalla "Cómo colocar los dedos" (la primera vez y desde el mapa) y un teclado en el juego con el color de cada dedo y la próxima tecla resaltada (`src/keys.ts`). Se puede apagar con el botón ⌨️.
-- **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/scene.ts`.
+- **Monedas, regalo diario y tienda:** cada partida da monedas; el regalo diario sube con la racha del reto diario; en la tienda se compran accesorios que se ven en la escena 3D. Para añadir un accesorio: una entrada en `src/cosmetics.ts` y su modelo en `src/hero.ts`.
 - **Retar a un amigo:** al terminar un nivel o la contrarreloj, el botón 🤝 genera un enlace con tu marca (`#reto=...`). Quien lo abre juega lo mismo y ve quién ganó. No usa servidor.
 
 ## Buzón de sugerencias
@@ -65,7 +75,9 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 | `src/modes.ts` | Reto diario, días seguidos y frases de la contrarreloj |
 | `src/online.ts` | Envío y lectura del ranking |
 | `api/` | Buzón de sugerencias y ranking (funciones de Vercel) |
-| `src/scene.ts` | Escena 3D y personaje |
+| `src/scene.ts` | Escena 3D: cámara, brillo, chispas y ciclo de animación |
+| `src/world.ts` | Ambiente 3D de cada dificultad |
+| `src/hero.ts` | Personaje 3D, accesorios y colores |
 | `src/audio.ts` | Efectos y música |
 | `src/ui.ts`, `src/style.css` | Pantallas y estilo (ver la guía de marca) |
 
@@ -73,14 +85,13 @@ En 🏆 el jugador decide (apagado por defecto) si su apodo y sus puntos del ret
 
 - **Más niveles o frases:** añade entradas **al final** de cada lista en `src/content.ts` (siempre `es` y `en`). El orden fija el número de nivel y el avance guardado de los jugadores. Hay 10 frases por dificultad y una pestaña de **Práctica** (fila central, superior, inferior, números, símbolos, acentos) que siempre está abierta.
 - **Otro idioma:** añade el código a `Lang` en `content.ts` y un bloque en `i18n.ts`.
-- **Modelo 3D propio del personaje:** guarda un archivo glTF/GLB como `public/models/vectorcito.glb`. Si existe, reemplaza al personaje básico. Para decorados, carga más modelos desde `src/scene.ts` con `GLTFLoader`.
+- **Otro modelo 3D del personaje:** reemplaza `public/models/vectorcito.glb` (ver «Personaje, ambiente y cosméticos»). Para decorados nuevos, añade modelos en `src/world.ts` con `GLTFLoader`.
 - **Música y sonidos propios:** pon tus archivos en `public/audio/` y reprodúcelos desde `src/audio.ts` (`new Audio("/audio/tema.mp3")`) en lugar de las notas generadas.
 
 ## Seguridad y datos
 Esta versión **no guarda contraseñas ni credenciales**. La versión original (2024, proyecto universitario) usaba una base de datos con una clave escrita en el código. Esa clave sigue visible en el historial de git: si alguna vez se usó en un servidor real, **cámbiala**.
 
 ## Créditos de terceros
-- **Fluent Emoji** © Microsoft, licencia MIT (iconos del juego).
 - **Three.js** (MIT), **Syne Mono** e **Inter** vía Fontsource (SIL Open Font License).
 - Los emojis de Apple no se incluyen: son propiedad de Apple y no se pueden redistribuir. En iPhone y iPad los emojis del sistema ya se ven con su estilo.
 
