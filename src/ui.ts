@@ -238,6 +238,7 @@ function startChallenge() {
 }
 
 function levelMap() {
+  music.mood("menu"); // fuera de un nivel suena la música de inicio
   world.theme(tab);
   world.mode("menu");
   show(`${toolbar()}
@@ -337,7 +338,7 @@ function info(l: Level) {
       <h2>${lvlName(l)} · ${tr(l.diff)}</h2>
       <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
       <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
-      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => info(l));
     on(r, "#back", levelMap);
@@ -554,7 +555,7 @@ function modeInfo(kind: "daily" | "time") {
       <p class="tag">${tr(kind === "daily" ? "dailyDesc" : "timeDesc")}</p>
       ${kind === "daily" ? dailyHero() : `<p class="hint">${tr("bestScore")}: ${store.bestTime || "–"}</p>`}
       ${kind === "daily" ? `<div id="remindbox" class="remind"></div>` : ""}
-      <div class="row"><button class="btn ghost-b-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
     </main>`, (r) => {
     wireToolbar(r, () => modeInfo(kind));
     on(r, "#back", levelMap);
@@ -576,7 +577,7 @@ async function renderRemind(box: HTMLElement) {
   const msg: Partial<Record<PushState, string>> = { unsupported: tr("remindUnsupported"), needsInstall: tr("remindInstall"), blocked: tr("remindBlocked") };
   if (msg[st]) { box.innerHTML = `<p class="hint">🔔 ${msg[st]}</p>`; return; }
   box.innerHTML = st === "on"
-    ? `<button class="btn ghost-b-b" id="rm">🔔 ${tr("remindOn")}</button>`
+    ? `<button class="btn ghost-b" id="rm">🔔 ${tr("remindOn")}</button>`
     : `<button class="btn ghost-b" id="rm">🔔 ${tr("remind")}</button><p class="hint">${tr("remindHelp")}</p>`;
   on(box, "#rm", async () => {
     sfx.click();
@@ -659,9 +660,9 @@ function results(o: Outcome) {
       ${o.kind === "level" && !nextLevel && l && !l.free ? `<p class="good pop" style="animation-delay:1.9s">${tr("allDone")}</p>` : ""}
       <p class="hint" id="sharenote" role="status"></p>
       <div class="row">
-        <button class="btn ghost-b-b" id="map">${tr("map")}</button>
-        <button class="btn ghost-b-b" id="retry">${tr("retry")}</button>
-        ${o.kind !== "daily" ? `<button class="btn ghost-b-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
+        <button class="btn ghost-b" id="map">${tr("map")}</button>
+        <button class="btn ghost-b" id="retry">${tr("retry")}</button>
+        ${o.kind !== "daily" ? `<button class="btn ghost-b" id="share">${ic("challenge")} ${tr("challengeFriend")}</button>` : ""}
         ${nextLevel && store.unlocked(nextLevel.id) ? `<button class="btn" id="next" data-focus>${tr("next")}</button>` : ""}
       </div>
     </main>`, (r) => {
