@@ -2,6 +2,7 @@ import { LEVELS, type Lang } from "./content";
 import { detectLang } from "./i18n";
 import { dateKey, nextStreak, prevKey } from "./modes";
 import { ITEMS, giftFor, type Slot } from "./cosmetics";
+import { isAdmin } from "./remote";
 
 export interface Best { stars: number; wpm: number; acc: number }
 export interface Run extends Best { id: number; ts: number; errors: number; secs: number; miss: Record<string, number> }
@@ -69,19 +70,28 @@ export const store = {
   /** Teclado con colores de dedos durante el juego. */
   get help() { return data.help; },
   set help(v: boolean) { data.help = v; save(); },
-  get coins() { return data.coins[data.current] ?? 0; },
-  addCoins(n: number) { data.coins[data.current] = this.coins + n; save(); },
-  owns(id: string) { return !!data.owned[data.current]?.includes(id); },
+  get coins() { return isAdmin() ? 999999 : data.coins[data.current] ?? 0; },
+  /** Lo que se muestra: el modo desarrollador tiene monedas infinitas. */
+  get coinsText() { return isAdmin() ? "∞" : String(this.coins); },
+  addCoins(n: number) { if (!isAdmin()) { data.coins[data.current] = this.coins + n; save(); } },
+  owns(id: string) {
+    const it = ITEMS.find((i) => i.id === id);
+    if (it?.admin) return isAdmin(); // los de desarrollador solo existen en el modo admin
+    return !!data.owned[data.current]?.includes(id);
+  },
   /** Compra un accesorio y lo deja puesto. false si no alcanzan las monedas. */
   buy(id: string) {
     const it = ITEMS.find((i) => i.id === id);
     if (!it || this.owns(id) || this.coins < it.price) return false;
-    data.coins[data.current] = this.coins - it.price;
+    if (!isAdmin()) data.coins[data.current] = this.coins - it.price;
     (data.owned[data.current] ??= []).push(id);
     this.wear(it.slot, id);
     return true;
   },
-  get worn(): Partial<Record<Slot, string>> { return data.worn[data.current] ?? {}; },
+  get worn(): Partial<Record<Slot, string>> {
+    const w = data.worn[data.current] ?? {};
+    return Object.fromEntries(Object.entries(w).filter(([, id]) => !ITEMS.find((i) => i.id === id)?.admin || isAdmin())) as Partial<Record<Slot, string>>;
+  },
   wear(slot: Slot, id: string | null) {
     const w = (data.worn[data.current] ??= {});
     if (id && this.owns(id)) w[slot] = id; else delete w[slot];

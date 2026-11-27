@@ -267,3 +267,22 @@ html[data-kind="phone"] .detail { grid-template-columns: auto 1fr; } html[data-k
 @keyframes bounce { 50% { translate: 0 -6px; } }
 @media (prefers-reduced-motion: reduce) { .flame .ic, .dailyhero, .week span, .week i { animation: none !important; } }
 .mode.attn { animation: glow 1.8s infinite; border-color: #ff7a1a; } @media (prefers-reduced-motion: reduce) { .mode.attn { animation: none; } }
+
+/* Combo */
+.streak { display: inline-flex; gap: .35rem; align-items: center; transition: color .2s; }
+.streak small { color: #ffd54a; font-family: var(--sans); }
+.streak[data-tier="2"] { color: #8cff8c; } .streak[data-tier="3"] { color: #ffe14d; } .streak[data-tier="4"] { color: #ff9a3d; } .streak[data-tier="5"] { color: #ff5d8f; text-shadow: 0 0 12px #ff5d8f; }
+.streak.bump { animation: bump .25s ease-out; } .streak.lost { animation: shake .35s; color: #ff7070; }
+@keyframes bump { 40% { transform: scale(1.35); } }
+.combo-res { color: #ffb347; margin: 0; font-family: var(--mono); }
+
+/* Modo desarrollador */
+.adminlist { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; max-height: 46vh; overflow: auto; }
+.adminlist li { display: grid; grid-template-columns: 2.6rem 1fr auto auto; gap: .5rem; align-items: center; padding: .4rem .6rem; border: 1px solid var(--linea); border-radius: 8px; background: rgb(10 10 53 / .85); }
+.adminlist li.off { opacity: .45; } .adminlist li.off span { text-decoration: line-through; }
+.adminlist b { font-family: var(--mono); color: var(--neon); font-weight: 400; } .adminlist small { display: block; color: var(--suave); }
+.adminlist .btn { padding: .3rem .6rem; font-size: .95rem; } .adminlist .ic { width: 1.2rem; height: 1.2rem; }
+.editor { display: grid; gap: .6rem; padding: .8rem; border: 2px solid var(--neon); border-radius: 12px; background: rgb(10 10 53 / .92); }
+.editor label { display: grid; gap: .25rem; color: var(--suave); font-size: .9rem; } .editor textarea.field { font-size: 1rem; resize: vertical; }
+.swatch.dark { background: radial-gradient(circle at 35% 30%, #3a3f55, #07070f 70%); border-color: #17ff93; box-shadow: 0 0 12px rgb(23 255 147 / .5); }
+.swatch.dev { background: #04120c; border-color: #00ff9c; box-shadow: 0 0 14px #00ff9c; position: relative; } .swatch.dev::after { content: "</>"; position: absolute; inset: 0; display: grid; place-items: center; color: #00ff9c; font: 700 .7rem var(--mono); }

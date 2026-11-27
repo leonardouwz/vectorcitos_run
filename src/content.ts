@@ -62,3 +62,31 @@ export const LEVELS: Level[] = [
     T[diff].map((text, i): Level => ({ id: d * 10 + i + 1, diff, n: i + 1, text, free: false }))),
   ...DRILLS.map((x, i): Level => ({ id: 101 + i, diff: "practice", n: i + 1, text: x.text, title: x.title, free: true })),
 ];
+
+/** Nivel personalizado que guarda el administrador (api/levels): cambia, oculta o añade sobre los de fábrica. */
+export interface CustomLevel { id: number; diff: Diff; es: string; en: string; title?: { es: string; en: string }; hidden?: boolean }
+
+const FACTORY = LEVELS.map((l) => ({ ...l }));
+
+/** Reconstruye LEVELS (la misma lista, sin cambiar de referencia) a partir de los niveles de fábrica y los personalizados. */
+export function applyCustom(custom: CustomLevel[]) {
+  const byId = new Map(custom.map((c) => [c.id, c]));
+  const out: Level[] = [];
+  for (const base of FACTORY) {
+    const c = byId.get(base.id);
+    if (c?.hidden) continue;
+    out.push(c ? { ...base, text: { es: c.es || base.text.es, en: c.en || base.text.en }, title: c.title ?? base.title } : { ...base });
+  }
+  for (const c of custom) {
+    if (c.hidden || FACTORY.some((f) => f.id === c.id)) continue;
+    const lv: Level = { id: c.id, diff: c.diff, n: 0, text: { es: c.es, en: c.en }, title: c.title, free: c.diff === "practice" };
+    let at = -1; // después del último nivel de su dificultad
+    out.forEach((l, i) => { if (l.diff === c.diff) at = i; });
+    out.splice(at < 0 ? out.length : at + 1, 0, lv);
+  }
+  const count: Record<string, number> = {};
+  for (const l of out) l.n = count[l.diff] = (count[l.diff] ?? 0) + 1;
+  LEVELS.splice(0, LEVELS.length, ...out);
+}
+/** Los niveles tal como vienen de fábrica (para el editor de administrador). */
+export const factoryLevels = () => FACTORY.map((l) => ({ ...l }));

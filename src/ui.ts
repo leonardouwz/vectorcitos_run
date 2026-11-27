@@ -1,11 +1,12 @@
-import { DIFFS, LEVELS, type Diff, type Level } from "./content";
+import { DIFFS, LEVELS, factoryLevels, type CustomLevel, type Diff, type Level } from "./content";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
 import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
-import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, coinsFor, rarityOf, type Slot } from "./cosmetics";
+import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, rarityOfItem, comboCoins, comboTier, coinsFor, type Slot } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
 import { highlightKey, keyboardHtml } from "./keys";
+import { adminLogin, adminLogout, custom, isAdmin, saveLevels } from "./remote";
 import { disablePush, enablePush, pushState, syncPush, type PushState } from "./push";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
@@ -23,6 +24,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 const tr = (k: Key) => t(store.lang, k);
 let pending: Challenge | null = null; // reto recibido por enlace
 const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k]));
+let runCombo = { coins: 0, max: 0, words: 0 }; // lo que dejó el combo en la última partida
 const DAILY_ID = 900, TIME_ID = 901; // partidas que no son un nivel
 const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
@@ -70,14 +72,13 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
   root.querySelector('[data-act="music"]')?.addEventListener("click", () => {
     store.music = !store.music;
     setMusicOn(store.music);
-    if (store.music && !store.muted) { unlockAudio(); music.start(); }
+    unlockAudio(); music.start();
     rerender();
   });
   root.querySelector('[data-act="sound"]')?.addEventListener("click", () => {
     store.muted = !store.muted;
     setMuted(store.muted);
-  setMusicOn(store.music);
-    if (!store.muted) { unlockAudio(); music.start(); }
+    unlockAudio(); music.start();
     rerender();
   });
 }
@@ -107,7 +108,7 @@ export function home() {
     <main class="center plain">
       <h1 class="logo">VECTORCITOS<span>RUN<i class="cursor"></i></span></h1>
       <p class="tag">${tr("tagline")}</p>
-      ${store.current ? `<div class="whochip">${esc(store.current)} · ${ic("coin")} ${store.coins}${store.dailyStreak ? ` · ${ic("fire")} ${store.dailyStreak}` : ""}</div>` : ""}
+      ${store.current ? `<div class="whochip">${esc(store.current)} · ${ic("coin")} ${store.coinsText}${store.dailyStreak ? ` · ${ic("fire")} ${store.dailyStreak}` : ""}</div>` : ""}
       ${pending ? `<div class="banner">${ic("challenge")} <b>${esc(pending.nick)}</b> ${tr("challengeBy")} ${esc(pending.kind === "time" ? tr("timeAttack") : lvlName(LEVELS.find((l) => l.id === pending!.id)!))}: ${pending.wpm} ${tr("wpmShort")} · ${pending.acc}%</div>` : ""}
       <button class="btn big" id="play" data-focus>${pending ? tr("acceptChallenge") : tr("play")}</button>
       <div id="installslot" class="installslot"></div>
@@ -181,33 +182,34 @@ function shop() {
   world.theme("menu");
   world.mode("shop");
   const worn = store.worn;
-  const items = ITEMS.filter((i) => i.slot === shopTab);
+  const items = ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price);
   const sel = ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null;
-  const owned = ITEMS.filter((i) => store.owns(i.id)).length;
-  const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
+  const visible = ITEMS.filter((i) => !i.admin || isAdmin());
+  const owned = visible.filter((i) => store.owns(i.id)).length;
+  const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "dark" ? `<i class="swatch dark"></i>` : i.finish === "dev" ? `<i class="swatch dev"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
   const detail = (() => {
     if (!sel) return `<p class="hint">${tr("shopHint")}</p>`;
     const has = store.owns(sel.id), on = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
     const btn = has ? `<button class="btn ${on ? "ghost" : ""}" id="act">${on ? tr("unequip") : tr("equip")}</button>`
       : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
       : `<button class="btn ghost-b" id="act" disabled>${ic("coin")} ${sel.price} · −${miss}</button>`;
-    return `<div class="detail ${rarityOf(sel.price)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
-      <div><em class="tier">${RARITY_NAMES[rarityOf(sel.price)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
+    return `<div class="detail ${rarityOfItem(sel)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
+      <div><em class="tier">${RARITY_NAMES[rarityOfItem(sel)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
   })();
   show(`${toolbar()}
     <main class="wide shop">
-      ${topbar(`${ic("shop")} ${tr("shop")}`, `${ic("coin")} ${store.coins}`)}
+      ${topbar(`${ic("shop")} ${tr("shop")}`, `${ic("coin")} ${store.coinsText}`)}
       <div class="shopbox">
         ${detail}
         <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
         <div class="cards">${items.map((i) => {
           const has = store.owns(i.id), on = worn[i.slot] === i.id, isSel = sel?.id === i.id;
           const art = i.hue !== undefined ? swatch(i) : ic(i.icon);
-          return `<button class="card ${rarityOf(i.price)} ${on ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
+          return `<button class="card ${rarityOfItem(i)} ${on ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
             <span class="art">${art}</span><b>${i.name[store.lang]}</b>
             <small>${has ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
         }).join("")}</div>
-        <p class="hint">${owned} / ${ITEMS.length} ✦ ${tr("shopHint")}</p>
+        <p class="hint">${owned} / ${visible.length} ✦ ${tr("shopHint")}</p>
       </div>
     </main>`, (r) => {
     wireToolbar(r, shop);
@@ -219,7 +221,7 @@ function shop() {
       if (!sel) return;
       if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
       else if (store.buy(sel.id)) {
-        const rar = rarityOf(sel.price);
+        const rar = rarityOfItem(sel);
         if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
         store.wear(sel.slot, sel.id);
         toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
@@ -243,10 +245,10 @@ function levelMap() {
   world.mode("menu");
   show(`${toolbar()}
     <main class="wide">
-      ${topbar(tr("pick"), `${esc(store.current)} · ${ic("coin")} ${store.coins}`)}
+      ${topbar(tr("pick"), `${esc(store.current)} · ${ic("coin")} ${store.coinsText}`)}
       <div class="modes">
         ${store.giftReady ? `<button class="mode gift" id="gift"><b>${ic("gift")} ${tr("giftDay")}</b><small>+${store.giftAmount} ${ic("coin")}</small></button>` : ""}
-        <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coins}</small></button>
+        <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coinsText}</small></button>
         <button class="mode ${store.daily.days[dateKey()] ? "" : "attn"}" id="m-daily"><b>${ic("daily")} ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
         <button class="mode" id="m-time"><b>${ic("time")} ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
         <button class="mode" id="rank"><b>${ic("rank")} ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "&nbsp;"}</small></button>
@@ -379,6 +381,8 @@ function run(cfg: RunCfg) {
     let cur!: Round;
     let chars: HTMLElement[] = [];
     let ready = false, over = false, leaving = false, streak = 0, t0 = 0;
+    let wordsInRow = 0, wordDirty = false, comboCoinsGot = 0, comboMax = 1, comboWords = 0;
+    runCombo = { coins: 0, max: 1, words: 0 };
     const timers: number[] = [];
 
     const load = (text: string) => {
@@ -402,14 +406,17 @@ function run(cfg: RunCfg) {
       if (!cfg.limit) meter.style.width = `${((done + (cur.done ? 0 : cur.pos / cur.chars.length)) / (cfg.total ?? 1)) * 100}%`;
       world.progress(cfg.limit ? Math.min(1, streak / 40) : (done + cur.pos / cur.chars.length) / (cfg.total ?? 1));
       count.textContent = label();
-      streakEl.hidden = streak < 10;
-      streakEl.innerHTML = `${ic("fire")} <span class="lbl">${tr("streak")}</span> ${streak}`;
+      const tier = comboTier(wordsInRow);
+      streakEl.hidden = wordsInRow < 1;
+      streakEl.dataset.tier = String(tier);
+      streakEl.innerHTML = `${ic("combo")} <span class="lbl">${tr("combo")}</span> x${tier} <small>+${comboCoinsGot} ${ic("coin")}</small>`;
     };
     refresh();
 
     const end = (complete: boolean) => {
       if (over) return;
       over = true; leaving = true;
+      runCombo = { coins: comboCoinsGot, max: comboMax, words: comboWords };
       input.blur();
       if (complete) world.win(); else sfx.click();
       timers.push(window.setTimeout(() => cfg.finish(rounds.filter((x) => x.pos > 0)), complete ? 1000 : 500));
@@ -459,7 +466,9 @@ function run(cfg: RunCfg) {
       const hit = cur.key(c, performance.now());
       if (hit === "none") return;
       if (hit === "error") {
-        streak = 0;
+        streak = 0; wordDirty = true;
+        if (wordsInRow >= 3) { sfx.error(); streakEl.classList.remove("lost"); void streakEl.offsetWidth; streakEl.classList.add("lost"); }
+        wordsInRow = 0;
         sfx.error(); world.error();
         if (device.touch && !store.muted) navigator.vibrate?.(25);
         phrase.classList.remove("err"); void phrase.offsetWidth; phrase.classList.add("err");
@@ -470,7 +479,20 @@ function run(cfg: RunCfg) {
         chars[cur.pos]?.classList.add("now");
         highlightKey(kbdbox, cur.current, store.lang);
         sfx.key(streak); world.key();
-        if (hit === "word" || hit === "done") { sfx.word(); world.word(); }
+        if (hit === "word" || hit === "done") {
+          sfx.word(); world.word();
+          if (!wordDirty) { // palabra limpia: suma al combo y da monedas
+            const before = comboTier(wordsInRow);
+            wordsInRow++; comboWords++;
+            const n = comboCoins(wordsInRow);
+            comboCoinsGot += n;
+            const tier = comboTier(wordsInRow);
+            comboMax = Math.max(comboMax, tier);
+            if (tier > before) { sfx.star(tier - 1); world.win(); toast(`${ic("combo")} ${tr("combo")} x${tier}!`); }
+            streakEl.classList.remove("bump"); void streakEl.offsetWidth; streakEl.classList.add("bump");
+          }
+          wordDirty = false;
+        }
         if (hit === "done") {
           const text = cfg.next();
           if (text === undefined) { refresh(); return end(true); }
@@ -609,11 +631,13 @@ function results(o: Outcome) {
   // Se guarda el resultado y se prepara lo que cambia según el tipo de partida.
   let isBest = false, opened = false, versus = "", streakMsg = "";
   let nextLevel: Level | undefined;
+  let newStars = 0;
   if (o.kind === "level" && l) {
     const next = LEVELS[LEVELS.findIndex((x) => x.id === l.id) + 1];
     nextLevel = next && next.free === l.free ? next : undefined;
     const wasOpen = nextLevel ? store.unlocked(nextLevel.id) : true;
     const prev = store.best(l.id);
+    newStars = Math.max(0, stars - (prev?.stars ?? 0));
     isBest = store.record(l.id, { stars, wpm: sum.wpm, acc });
     opened = !!nextLevel && !wasOpen && store.unlocked(nextLevel.id);
     const d = prev ? sum.wpm - prev.wpm : 0;
@@ -633,7 +657,9 @@ function results(o: Outcome) {
   // Comparación con el amigo que envió el reto (si lo hay)
   const mine = compareScore(o.kind === "time" ? "time" : "level", sum.wpm, acc, score);
   const duel = o.vs ? fmt(tr(verdict(mine, o.vs.score) === "win" ? "youWin" : verdict(mine, o.vs.score) === "lose" ? "youLose" : "youTie"), { nick: o.vs.nick, a: mine, b: o.vs.score }) : "";
-  const coins = coinsFor({ kind: o.kind, stars, wpm: sum.wpm, score, isBest });
+  const base = coinsFor({ kind: o.kind, stars, wpm: sum.wpm, score, isBest, newStars });
+  const bonus = runCombo.coins;
+  const coins = base + bonus;
   store.addCoins(coins);
   const tiles: [Key, number, string][] = o.kind === "time"
     ? [["score", score, ""], ["wpm", sum.wpm, ""], ["acc", acc, "%"], ["phrases", sum.phrases, ""]]
@@ -649,6 +675,8 @@ function results(o: Outcome) {
       <dl class="stats">${tiles.map(([k, n, suf]) => `<div><dt>${tr(k)}</dt><dd data-n="${n}" data-s="${suf}">0</dd></div>`).join("")}</dl>
       ${duel ? `<p class="duel pop" style="animation-delay:1.5s">${verdict(mine, o.vs!.score) === "win" ? ic("win") + " " : ""}${esc(duel)}</p>` : ""}
       <p class="good pop" style="animation-delay:1.55s">+${coins} ${ic("coin")} ${tr("coinsEarned")}</p>
+      ${runCombo.words ? `<p class="combo-res pop" style="animation-delay:1.6s">${ic("combo")} ${tr("combo")} x${runCombo.max} · ${runCombo.words} ${tr("cleanWords")} · +${bonus} ${ic("coin")}</p>` : ""}
+      ${newStars ? `<p class="hint pop" style="animation-delay:1.62s">+${newStars * 10} ${ic("coin")} ${tr("newStarsBonus")} (+${newStars} ★)</p>` : ""}
       ${versus ? `<p class="hint pop" style="animation-delay:1.6s">${versus}</p>` : ""}
       ${streakMsg ? `<p class="good pop" style="animation-delay:1.6s">${streakMsg}</p>` : ""}
       <p class="hint" id="rankline" aria-live="polite"></p>
@@ -813,11 +841,97 @@ function suggest(back: () => void) {
   });
 }
 
+// ---------- Modo desarrollador (se abre con #admin en la dirección y la clave ADMIN_KEY)
+let adminTab: Diff = "easy";
+let editing: { id: number; isNew: boolean } | null = null;
+
+function adminLoginScreen() {
+  world.theme("menu"); world.mode("menu");
+  show(`${toolbar()}
+    <main class="center">
+      <h2>${ic("tools")} Modo desarrollador</h2>
+      <p class="tag">Escribe la clave de administrador.</p>
+      <input class="field" id="akey" type="password" autocomplete="off" aria-label="Clave" style="max-width:22rem">
+      <p class="hint" id="amsg" role="status"></p>
+      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>Entrar</button></div>
+    </main>`, (r) => {
+    on(r, "#back", home);
+    const go = async () => {
+      const msg = r.querySelector<HTMLElement>("#amsg")!;
+      msg.textContent = "…";
+      if (await adminLogin(r.querySelector<HTMLInputElement>("#akey")!.value)) { sfx.fanfare(); history.replaceState(null, "", location.pathname); adminPanel(); }
+      else { sfx.error(); msg.textContent = "Clave incorrecta."; }
+    };
+    on(r, "#go", go);
+    r.querySelector("#akey")!.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") void go(); });
+  });
+}
+
+function adminPanel() {
+  world.theme("menu"); world.mode("menu");
+  const factory = factoryLevels();
+  const over = new Map(custom.map((c) => [c.id, c]));
+  const rows = [
+    ...factory.map((f) => ({ id: f.id, diff: f.diff, es: over.get(f.id)?.es || f.text.es, en: over.get(f.id)?.en || f.text.en, hidden: !!over.get(f.id)?.hidden, changed: over.has(f.id), isNew: false })),
+    ...custom.filter((c) => !factory.some((f) => f.id === c.id)).map((c) => ({ id: c.id, diff: c.diff, es: c.es, en: c.en, hidden: false, changed: true, isNew: true })),
+  ].filter((x) => x.diff === adminTab);
+  const cur = editing ? (over.get(editing.id) ?? (() => { const f = factory.find((x) => x.id === editing!.id); return f ? { id: f.id, diff: f.diff, es: f.text.es, en: f.text.en, title: f.title } : undefined; })()) : undefined;
+  const nextId = Math.max(199, ...custom.map((c) => c.id)) + 1;
+  const e = editing && (cur ?? { id: editing.id, diff: adminTab, es: "", en: "", title: undefined });
+  show(`${toolbar()}
+    <main class="wide admin">
+      ${topbar(`${ic("tools")} Modo desarrollador`, `${ic("infinity")} monedas`, true)}
+      <section class="panel">
+        <p class="hint">${ic("infinity")} Monedas infinitas activas · ${ic("devbadge")} La skin y la insignia de desarrollador están en la tienda.</p>
+        <div class="tabs" role="tablist">${DIFFS.map((d) => `<button role="tab" class="tab" aria-selected="${d === adminTab}" data-d="${d}">${tr(d)}</button>`).join("")}</div>
+        <ul class="adminlist">${rows.map((x) => `<li class="${x.hidden ? "off" : ""}"><b>${x.id}</b><span>${esc(x.es)}<small>${esc(x.en)}</small></span>
+          <button class="btn ghost-b" data-edit="${x.id}" data-new="${x.isNew}">${ic("pencil")}</button>
+          ${x.isNew ? `<button class="btn ghost-b" data-del="${x.id}">✕</button>` : x.hidden ? `<button class="btn ghost-b" data-undo="${x.id}">↺</button>` : `<button class="btn ghost-b" data-hide="${x.id}">🙈</button>`}</li>`).join("") || `<li class="hint">Sin niveles.</li>`}</ul>
+        <button class="btn" id="add">+ Añadir nivel a ${tr(adminTab)}</button>
+        ${e ? `<div class="editor"><h3>${editing!.isNew ? "Nivel nuevo" : `Editar nivel ${e.id}`}</h3>
+          <label>Español<textarea class="field" id="e-es" rows="2" maxlength="240">${esc(e.es)}</textarea></label>
+          <label>English<textarea class="field" id="e-en" rows="2" maxlength="240">${esc(e.en)}</textarea></label>
+          ${adminTab === "practice" ? `<div class="row"><label>Título ES<input class="field" id="e-tes" maxlength="40" value="${esc(e.title?.es ?? "")}"></label><label>Title EN<input class="field" id="e-ten" maxlength="40" value="${esc(e.title?.en ?? "")}"></label></div>` : ""}
+          <div class="row"><button class="btn ghost-b" id="e-cancel">Cancelar</button>${!editing!.isNew && over.has(e.id) ? `<button class="btn ghost-b" id="e-reset">Quitar mis cambios</button>` : ""}<button class="btn" id="e-save">Guardar y publicar</button></div></div>` : ""}
+        <p class="hint" id="amsg" role="status"></p>
+      </section>
+      <div class="row"><button class="btn ghost-b" id="logout">Salir del modo desarrollador</button></div>
+    </main>`, (r) => {
+    const msg = (t: string) => { const m = r.querySelector<HTMLElement>("#amsg"); if (m) m.textContent = t; };
+    const publish = async (list: CustomLevel[], okText = "Publicado ✓") => {
+      msg("Publicando…");
+      if (await saveLevels(list)) { editing = null; sfx.star(1); toast(okText); adminPanel(); } else { sfx.error(); msg("No se pudo publicar (revisa la conexión o los textos)."); }
+    };
+    on(r, "#back", home);
+    on(r, "#logout", () => { adminLogout(); home(); });
+    r.querySelectorAll<HTMLElement>("[data-d]").forEach((b) => b.addEventListener("click", () => { adminTab = b.dataset.d as Diff; editing = null; adminPanel(); }));
+    r.querySelectorAll<HTMLElement>("[data-edit]").forEach((b) => b.addEventListener("click", () => { editing = { id: +b.dataset.edit!, isNew: b.dataset.new === "true" }; adminPanel(); }));
+    r.querySelectorAll<HTMLElement>("[data-hide]").forEach((b) => b.addEventListener("click", () => void publish([...custom.filter((c) => c.id !== +b.dataset.hide!), { id: +b.dataset.hide!, diff: adminTab, es: "", en: "", hidden: true }], "Nivel oculto")));
+    r.querySelectorAll<HTMLElement>("[data-undo]").forEach((b) => b.addEventListener("click", () => void publish(custom.filter((c) => c.id !== +b.dataset.undo!), "Nivel restaurado")));
+    r.querySelectorAll<HTMLElement>("[data-del]").forEach((b) => b.addEventListener("click", () => void publish(custom.filter((c) => c.id !== +b.dataset.del!), "Nivel eliminado")));
+    on(r, "#add", () => { editing = { id: nextId, isNew: true }; adminPanel(); });
+    on(r, "#e-cancel", () => { editing = null; adminPanel(); });
+    on(r, "#e-reset", () => void publish(custom.filter((c) => c.id !== editing!.id), "Cambios quitados"));
+    on(r, "#e-save", () => {
+      const v = (id: string) => (r.querySelector<HTMLInputElement>(id)?.value ?? "").trim();
+      const es = v("#e-es"), en = v("#e-en");
+      if (es.length < 3 || en.length < 3) { sfx.error(); return msg("Escribe la frase en español y en inglés."); }
+      const lv: CustomLevel = { id: editing!.id, diff: adminTab, es, en };
+      if (adminTab === "practice" && (v("#e-tes") || v("#e-ten"))) lv.title = { es: v("#e-tes") || v("#e-ten"), en: v("#e-ten") || v("#e-tes") };
+      void publish([...custom.filter((c) => c.id !== lv.id), lv]);
+    });
+  });
+}
+
 export function start(w: World) {
   world = w;
   document.documentElement.lang = store.lang;
   setMuted(store.muted);
+  setMusicOn(store.music);
   pending = decode(location.hash);
   if (location.hash.startsWith("#reto=")) history.replaceState(null, "", location.pathname + location.search);
+  const goAdmin = () => (isAdmin() ? adminPanel() : adminLoginScreen());
+  addEventListener("hashchange", () => { if (location.hash === "#admin") goAdmin(); });
+  if (location.hash === "#admin") return goAdmin();
   home();
 }
