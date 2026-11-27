@@ -23,15 +23,16 @@ const FROM_MODEL = (y: number) => (y + 0.952) * S; // altura del modelo original
 const MODEL: Anchors = { headTop: FROM_MODEL(0.455), faceY: FROM_MODEL(-0.09), faceZ: -0.5, eyeDX: 0.25, bodyW: 0.72 * S, bodyD: 0.41 * S, chestY: FROM_MODEL(-0.36), backTop: FROM_MODEL(0.3), sc: 1.3 };
 
 const HUE = { value: 0 };
-const SAT = { value: 1 }; // 1 = color normal, ~0 = cromado // giro de color (radianes) compartido por todo el cuerpo
+const SAT = { value: 1 }; // 1 = color normal, ~0 = cromado
+const BRIGHT = { value: 1 }; // <1 = más oscuro (obsidiana) // giro de color (radianes) compartido por todo el cuerpo
 
 /** Gira el color del material: así un mismo modelo sirve para todos los colores y para el destello rojo al fallar. */
 function hueable(mat: THREE.MeshStandardMaterial) {
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uHue = HUE; sh.uniforms.uSat = SAT;
+    sh.uniforms.uHue = HUE; sh.uniforms.uSat = SAT; sh.uniforms.uBright = BRIGHT;
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float uHue; uniform float uSat;\nvec3 hueRot(vec3 c, float a){ const vec3 k = vec3(0.57735); float ca = cos(a), sa = sin(a); return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca); }")
-      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb = hueRot(diffuseColor.rgb, uHue); diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3,0.59,0.11)) * 1.15), diffuseColor.rgb, uSat);")
+      .replace("#include <common>", "#include <common>\nuniform float uHue; uniform float uSat; uniform float uBright;\nvec3 hueRot(vec3 c, float a){ const vec3 k = vec3(0.57735); float ca = cos(a), sa = sin(a); return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca); }")
+      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb = hueRot(diffuseColor.rgb, uHue); diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3,0.59,0.11)) * 1.15), diffuseColor.rgb, uSat) * uBright;")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance = hueRot(totalEmissiveRadiance, uHue);");
   };
   mat.customProgramCacheKey = () => "hue";
@@ -77,6 +78,8 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
   let legL: THREE.Object3D = sLegL, legR: THREE.Object3D = sLegR, armL: THREE.Object3D = sArmL, armR: THREE.Object3D = sArmR;
   let lids: THREE.Mesh | null = null;
   let modelBase: THREE.Group | null = null;
+  let glowOn = false;
+  let bodyMaterial: THREE.MeshStandardMaterial | null = null;
   let bodyMat: { setMetal(on: boolean): void } | null = null;
 
   // ---------- Modelo generado: se parte en cuerpo, brazos y piernas para poder moverlos
@@ -111,7 +114,8 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
     material.emissiveIntensity = 0.28; // un poco de brillo propio para que se vea "neón"
     material.roughness = 0.55; material.metalness = 0.05;
     hueable(material);
-    bodyMat = { setMetal(on) { material.metalness = on ? 0.95 : 0.05; material.roughness = on ? 0.18 : 0.55; material.envMap = on ? envTex : null; material.emissiveIntensity = on ? 0.05 : 0.28; material.needsUpdate = true; } };
+    bodyMaterial = material;
+    bodyMat = { setMetal(on) { material.metalness = on ? 0.95 : 0.05; material.roughness = on ? 0.18 : 0.55; material.envMap = on ? envTex : null; material.emissiveIntensity = on ? 0.05 : 0.28; material.metalness = on ? 0.85 : 0.05; material.needsUpdate = true; } };
 
     bodyMat.setMetal(metal);
     const root = new THREE.Group();
@@ -197,6 +201,29 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
     set("spacehelmet", grp([0, (A.headTop + A.faceY) / 2 - 0.1, 0], dome, at(rim, 0, -domeR * 0.55, 0), at(lamp, domeR * 0.75, -domeR * 0.45, -domeR * 0.45)));
     anim.spacehelmet = (t) => { (lamp.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.4 + Math.abs(Math.sin(t * 3)); };
 
+
+    // Gorra de hélice: la hélice gira más rápido con la velocidad
+    const prop = new THREE.Group();
+    prop.add(at(box(0.62 * sc, 0.035, 0.1 * sc, mat(0xffc107, 0xaa7a00)), 0, 0, 0), at(box(0.1 * sc, 0.035, 0.62 * sc, mat(0xffc107, 0xaa7a00)), 0, 0, 0));
+    set("propeller", head(at(mesh(new THREE.SphereGeometry(0.46 * sc, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xe53935, 0x7a1010)), 0, 0, 0), at(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16 * sc, 8), BLACK), 0, 0.48 * sc, 0), at(prop, 0, 0.56 * sc, 0), at(mesh(new THREE.TorusGeometry(0.46 * sc, 0.03, 8, 30, Math.PI), mat(0x2f6bff, 0x102a80)).rotateX(Math.PI / 2), 0, 0.01, 0)));
+    anim.propeller = (t, sp) => { prop.rotation.y = t * (6 + sp * 1.6); };
+    // Gorro de chef: copa abombada con pliegues
+    set("chef", head(at(cyl(0.4 * sc, 0.4 * sc, 0.16 * sc, WHITE), 0, 0.08 * sc, 0), ...[[-0.2, 0.34], [0.2, 0.34], [0, 0.4], [-0.1, 0.52], [0.12, 0.5]].map(([x, y]) => at(ball(0.22 * sc, WHITE), x * sc, y * sc, ((x as number) * 0.4) * sc))));
+    // Cinta ninja: banda con placa metálica y nudo con colas
+    const bandN = mesh(new THREE.TorusGeometry(1, 0.07 * sc, 8, 40).rotateX(Math.PI / 2), mat(0x1c1c3a, 0x0a0a20));
+    bandN.scale.set(A.bodyW * 1.14 * sc, 1, A.bodyD * 1.14 * sc);
+    const plate = box(0.5 * sc, 0.16 * sc, 0.04, mat(0xdfe6ff, 0x8899cc, { metalness: 0.5, roughness: 0.3 }));
+    const knot = (z: number) => at(box(0.07 * sc, 0.34 * sc, 0.03, mat(0x1c1c3a, 0x0a0a20)), z * 0.1 * sc, -0.12 * sc, A.bodyD * 1.14 * sc);
+    set("headband", grp([0, A.headTop - 0.3, 0], bandN, at(plate, 0, 0, -A.bodyD * 1.14 * sc), knot(-1), knot(1)));
+    accessories.headband.children[2].rotation.z = 0.25; accessories.headband.children[3].rotation.z = -0.25;
+    anim.headband = (t, sp) => { const k = Math.sin(t * 6) * 0.1 + Math.min(sp / 20, 0.5); accessories.headband.children[2].rotation.x = k; accessories.headband.children[3].rotation.x = k * 1.2; };
+    // Sombrero vaquero: ala curva y cinta con estrella
+    const brimC = mat(0x8a5a2b, 0x3a2410);
+    const brim = mesh(new THREE.CylinderGeometry(0.62 * sc, 0.62 * sc, 0.04, 30), brimC);
+    set("cowboy", head(brim, at(cyl(0.34 * sc, 0.4 * sc, 0.34 * sc, brimC), 0, 0.2 * sc, 0), at(cyl(0.405 * sc, 0.405 * sc, 0.07 * sc, mat(0x3a2410)), 0, 0.08 * sc, 0), at(mesh(new THREE.OctahedronGeometry(0.07 * sc), GOLD), 0, 0.09 * sc, -0.41 * sc)));
+    accessories.cowboy.children[0].scale.set(1, 1, 0.85);
+    for (const id of ["propeller", "chef", "cowboy"]) { accessories[id].scale.multiplyScalar(1.45); accessories[id].position.y -= 0.04; }
+
     // Cara (origen: centro de los ojos, sobre el frente de la pantalla)
     const lens = (m: THREE.Material, w: number, h: number) => [-1, 1].map((s) => at(mesh(new RoundedBoxGeometry(w, h, 0.04, 3, 0.04), m), s * A.eyeDX * sc, 0, -0.045));
     set("glasses", face(...[-1, 1].map((s) => at(mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 24), BLACK), s * A.eyeDX * sc, 0, -0.03)), at(box(0.1, 0.03, 0.03, BLACK), 0, 0.02, -0.03)));
@@ -204,6 +231,11 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
     set("monocle", face(at(mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 24), GOLD), A.eyeDX * sc, 0, -0.03), at(box(0.012, 0.35, 0.012, GOLD), A.eyeDX * sc + 0.1, -0.2, -0.03)));
     set("visor", face(at(mesh(new RoundedBoxGeometry(A.eyeDX * 2 * sc + 0.4, 0.2, 0.05, 3, 0.05), NEON), 0, 0, -0.045)));
 
+    // Gafas de corazón
+    const heart = new THREE.Shape(); heart.moveTo(0, -0.1); heart.bezierCurveTo(-0.22, 0.02, -0.14, 0.18, 0, 0.08); heart.bezierCurveTo(0.14, 0.18, 0.22, 0.02, 0, -0.1);
+    const hg = new THREE.ExtrudeGeometry(heart, { depth: 0.04, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.01, bevelSegments: 2 });
+    const pinkM = mat(0xff4fa3, 0xff2d85), lensM = new THREE.MeshStandardMaterial({ color: 0x8a1c6a, transparent: true, opacity: 0.55, roughness: 0.1 });
+    set("heartglasses", face(...[-1, 1].flatMap((s) => [at(mesh(hg.clone().scale(1.35 * sc, 1.35 * sc, 1), pinkM), s * A.eyeDX * sc, -0.01, -0.06), at(mesh(new THREE.ShapeGeometry(heart).scale(1.2 * sc, 1.2 * sc, 1), lensM), s * A.eyeDX * sc, -0.01, -0.075)]), at(box(0.12, 0.03, 0.03, pinkM), 0, 0.03, -0.05)));
     // Bigote: dos rizos bajo la nariz
     const stache = (x: number) => { const m = mesh(new THREE.SphereGeometry(1, 16, 10).scale(0.26 * sc, 0.09 * sc, 0.07 * sc), mat(0xf2a65a, 0xb8641a)); m.position.set(x * 0.22 * sc, 0, 0); m.rotation.z = x * 0.3; return m; };
     const tip = (x: number) => at(ball(0.06 * sc, mat(0xf2a65a, 0xb8641a)), x * 0.46 * sc, 0.07 * sc, 0);
@@ -244,6 +276,16 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
       }
       pos.needsUpdate = true; capeGeo.computeVertexNormals();
     };
+    // Corbata
+    const tieM = mat(0xe53935, 0x7a1010);
+    set("tie", grp([0, A.chestY - 0.1, A.faceZ * 1.05], at(mesh(new THREE.ConeGeometry(0.1 * sc, 0.14 * sc, 4), tieM), 0, 0.06 * sc, 0), at(mesh(new THREE.ConeGeometry(0.12 * sc, 0.5 * sc, 4).rotateX(Math.PI), tieM), 0, -0.27 * sc, 0)));
+    // Medalla: cinta en V y disco dorado con estrella
+    const ribbon = (x: number, r: number) => { const b = box(0.1 * sc, 0.5 * sc, 0.03, mat(0xe53935, 0x7a1010)); b.position.set(x * sc, 0.2 * sc, 0); b.rotation.z = r; return b; };
+    set("medal", grp([0, A.chestY - 0.1, A.faceZ * 1.05], ribbon(-0.12, 0.35), ribbon(0.12, -0.35), at(cyl(0.17 * sc, 0.17 * sc, 0.05, GOLD).rotateX(Math.PI / 2), 0, -0.12 * sc, 0), at(mesh(new THREE.OctahedronGeometry(0.07 * sc), mat(0xfff3b0, 0xfff3b0)), 0, -0.12 * sc, -0.04)));
+    // Insignia de desarrollador: pantalla de terminal en el pecho
+    const termM = new THREE.MeshBasicMaterial({ color: 0x00ff9c });
+    set("devbadge", grp([0, A.chestY - 0.05, A.faceZ * 1.06], at(mesh(new RoundedBoxGeometry(0.46 * sc, 0.32 * sc, 0.04, 2, 0.03), mat(0x0b1a14, 0x04120c)), 0, 0, 0), at(box(0.28 * sc, 0.03, 0.02, termM), -0.03 * sc, 0.04 * sc, -0.03), at(box(0.18 * sc, 0.03, 0.02, termM), -0.08 * sc, -0.03 * sc, -0.03), at(box(0.04 * sc, 0.07 * sc, 0.02, termM), 0.12 * sc, -0.03 * sc, -0.03)));
+    anim.devbadge = (t) => { termM.color.setHex(Math.sin(t * 8) > 0 ? 0x00ff9c : 0x00cc7a); };
     // Mochila cohete: dos tanques con boquillas y llamas que crecen con la velocidad
     const tank = (x: number) => { const t = new THREE.Group(); t.add(cyl(0.12 * sc, 0.12 * sc, 0.6 * sc, mat(0xe6ecff, 0x6677aa, { metalness: 0.3, roughness: 0.35 })), at(cyl(0.125 * sc, 0.125 * sc, 0.07 * sc, RED), 0, 0.15 * sc, 0), at(mesh(new THREE.ConeGeometry(0.12 * sc, 0.16 * sc, 16), RED), 0, 0.37 * sc, 0), at(cyl(0.09 * sc, 0.12 * sc, 0.1 * sc, BLACK), 0, -0.34 * sc, 0)); t.position.x = x; return t; };
     const flameMat = new THREE.MeshBasicMaterial({ color: 0xff9a2a, transparent: true, opacity: 0.9 });
@@ -271,7 +313,7 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
 
   // ---------- Movimiento
   let blink = 2;
-  let skinHue = 0, cycle = false, metal = false;
+  let skinHue = 0, cycle = false, metal = false, finish = "";
   return {
     group: hero,
     /** Dónde salen las chispas. */
@@ -283,8 +325,11 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
       const skin = ids.map((id) => ITEMS.find((i) => i.id === id)).find((i) => i?.slot === "skin");
       skinHue = ((skin?.hue ?? 0) * Math.PI) / 180;
       cycle = skin?.finish === "cycle";
-      SAT.value = skin?.finish === "metal" ? 0.12 : 1;
-      metal = skin?.finish === "metal"; bodyMat?.setMetal(metal);
+      finish = skin?.finish ?? "";
+      SAT.value = finish === "metal" ? 0.12 : finish === "dark" ? 0.25 : finish === "dev" ? 0.8 : 1;
+      BRIGHT.value = finish === "dark" ? 0.2 : finish === "dev" ? 0.26 : 1;
+      glowOn = finish === "dark" || finish === "dev";
+      metal = skin?.finish === "metal"; bodyMat?.setMetal(metal || finish === "dark");
     },
     update(s: HeroState) {
       const swing = Math.sin(s.T * 1.6) * 0.8;
@@ -320,6 +365,11 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
       }
       // destello rojo al fallar (el color verde gira hasta el rojo)
       HUE.value = (cycle ? s.time * 1.4 : skinHue) + s.flash * -2.6;
+      if (bodyMaterial) { // obsidiana y desarrollador: brillo propio que late
+        const m = bodyMaterial;
+        if (glowOn) { if (m.emissiveMap) m.needsUpdate = true; m.emissive.set(finish === "dev" ? 0x00ff9c : 0x17ff93); m.emissiveMap = null; m.emissiveIntensity = (finish === "dev" ? 0.4 : 0.1) + Math.sin(s.time * 3) * 0.06; }
+        else if (!metal && m.emissiveMap === null) { m.emissive.set(0xffffff); m.emissiveMap = m.map; m.emissiveIntensity = 0.28; m.needsUpdate = true; }
+      }
       // accesorios con vida propia
       for (const id of worn) anim[id]?.(s.time, s.speed);
     },

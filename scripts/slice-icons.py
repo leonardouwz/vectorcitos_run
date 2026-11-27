@@ -14,15 +14,16 @@ NAMES = [
     ["shop", "gift", "coin", "challenge", "win", "sound", "mute", "music", "phone", "gem", "skin", "star"],
     ["party", "catears", "headphones", "tophat", "wizard", "halo", "crown", "spacehelmet", "glasses", "mustache", "monocle", "shades"],
     ["visor", "bow", "scarf", "cape", "wings", "jetpack", "sparks", "hearts", "stars", "flames", "rainbow", "paint"],
+    ["propeller", "chef", "headband", "cowboy", "heartglasses", "medal", "tie", "devbadge", "tools", "pencil", "infinity", "combo"],
 ]
 COLS, ROWS, OUT = 4, 3, 128
 root = Path(__file__).resolve().parent.parent
 
 
-def cutout(rgb: np.ndarray) -> np.ndarray:
+def cutout(rgb: np.ndarray, white: int = 238) -> np.ndarray:
     """Quita el fondo blanco que toca los bordes y suaviza el contorno sin dejar halo blanco."""
     h, w, _ = rgb.shape
-    near_white = rgb.min(axis=2) >= 238
+    near_white = rgb.min(axis=2) >= white
     bg = np.zeros((h, w), bool)
     q = deque()
     for x in range(w):
@@ -53,6 +54,18 @@ def cutout(rgb: np.ndarray) -> np.ndarray:
     return np.dstack([out, alpha * 255]).astype(np.uint8)
 
 
+def drop_specks(rgba: np.ndarray) -> np.ndarray:
+    """Quita restos de los iconos vecinos que se cuelan en los bordes de la celda (piezas pequeñas sueltas)."""
+    from scipy import ndimage
+    lab, n = ndimage.label(rgba[..., 3] > 20)
+    if n < 2: return rgba
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    keep = [i + 1 for i, a in enumerate(sizes) if a >= 0.04 * sizes.max()]
+    rgba = rgba.copy()
+    rgba[..., 3] = np.where(np.isin(lab, keep) | (ndimage.binary_dilation(np.isin(lab, keep), iterations=2) & (rgba[..., 3] > 0)), rgba[..., 3], 0)
+    return rgba
+
+
 names_flat = []
 for s, names in enumerate(NAMES):
     sheet = Image.open(root / f"assets/icon-sheets/sheet{s}.webp").convert("RGB")
@@ -62,7 +75,8 @@ for s, names in enumerate(NAMES):
         c, r = i % COLS, i // COLS
         box = (int(c * cw), int(r * ch), int((c + 1) * cw), int((r + 1) * ch))
         cell = np.array(sheet.crop(box))
-        rgba = cutout(cell)
+        rgba = cutout(cell, 252 if name == "chef" else 238)
+        if s == 4: rgba = drop_specks(rgba)
         ys, xs = np.where(rgba[..., 3] > 20)
         x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
         img = Image.fromarray(rgba).crop((x0, y0, x1, y1))

@@ -18,3 +18,17 @@ test("contenido: ids únicos, dos idiomas y dificultad creciente", () => {
   expect(LEVELS.find((l) => l.diff === "medium")!.id).toBe(11);
   expect(LEVELS.find((l) => l.diff === "hard")!.id).toBe(21);
 });
+
+import { applyCustom, factoryLevels } from "./content";
+test("niveles personalizados: cambiar, ocultar y añadir", () => {
+  const n = LEVELS.length;
+  applyCustom([{ id: 1, diff: "easy", es: "Texto nuevo.", en: "New text." }, { id: 2, diff: "easy", es: "", en: "", hidden: true }, { id: 250, diff: "easy", es: "Otro nivel.", en: "Another level." }]);
+  expect(LEVELS.find((l) => l.id === 1)!.text.es).toBe("Texto nuevo.");
+  expect(LEVELS.some((l) => l.id === 2)).toBe(false);
+  expect(LEVELS.length).toBe(n); // uno oculto, uno añadido
+  const easy = LEVELS.filter((l) => l.diff === "easy");
+  expect(easy[easy.length - 1].id).toBe(250);
+  expect(easy.map((l) => l.n)).toEqual(easy.map((_, i) => i + 1));
+  applyCustom([]);
+  expect(LEVELS.map((l) => l.id)).toEqual(factoryLevels().map((l) => l.id));
+});

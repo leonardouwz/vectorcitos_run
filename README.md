@@ -98,3 +98,17 @@ Esta versión **no guarda contraseñas ni credenciales**. La versión original (
 ## Créditos
 Proyecto original de Universidad La Salle (Ingeniería de Software, 2024B). Integrantes: Piero Fabricio Poblete Andía, Katherine Naomi Saico Ccahuana, Allison Mayra Usedo Quispe, Leonardo Raphael Pachari Gomez y Nicolle Andrea Lozano Vega. Docente: Richart Smith Escobedo Quispe.
 Presentación del proyecto: [assets/vectorcitos_run_ppt.pdf](assets/vectorcitos_run_ppt.pdf). Historial de commits original: <https://github.com/leonardouwz/lp3_vectorcitos/tree/main/lab05%20ev4/Consola>.
+
+## Modo desarrollador
+
+Abre el juego con `#admin` al final de la dirección (por ejemplo `https://vectorcitos-run.vercel.app/#admin`) y escribe la clave `ADMIN_KEY` (la misma del buzón). Dentro:
+
+- **Monedas infinitas** (∞) y compra gratis en la tienda.
+- **Skin e insignia de desarrollador**, que solo existen en este modo.
+- **Editor de niveles**: añade, cambia u oculta frases de cada dificultad. Se publican al instante para todos (`api/levels`, guardado en Blob). Los niveles de fábrica no se borran: "ocultar" y "quitar mis cambios" son reversibles.
+
+La clave se comprueba en el servidor (`api/admin`, `api/levels`); el navegador solo la recuerda en este dispositivo. "Salir del modo desarrollador" la olvida.
+
+## Combos y monedas
+
+Cada palabra sin errores suma al combo (x2 a las 3, x3 a las 6… hasta x5) y da tantas monedas como el nivel de combo. Un error lo rompe. Al terminar se suman estrellas, velocidad, récord y un bono por cada estrella nueva (`coinsFor` y `comboTier` en `src/cosmetics.ts`).

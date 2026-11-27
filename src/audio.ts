@@ -2,9 +2,13 @@
 // sonidos o música, mira el README (sección "Ampliar el juego").
 let ctx: AudioContext | null = null;
 let master: GainNode;
+let bus: GainNode; // volumen de la música: un solo control, así silenciar/activar nunca se desincroniza
 let noise: AudioBuffer;
 let muted = false;
 let musicOn = true;
+const MUSIC_VOL = 0.55;
+const busTarget = () => (muted || !musicOn ? 0 : MUSIC_VOL);
+const applyBus = () => { if (ctx && bus) { bus.gain.cancelScheduledValues(ctx.currentTime); bus.gain.setTargetAtTime(busTarget(), ctx.currentTime, 0.05); } };
 
 function ensure() {
   if (!ctx) {
@@ -12,6 +16,9 @@ function ensure() {
     master = ctx.createGain();
     master.gain.value = 0.5;
     master.connect(ctx.destination);
+    bus = ctx.createGain();
+    bus.gain.value = busTarget();
+    bus.connect(ctx.destination);
     noise = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
     const d = noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -98,7 +105,6 @@ const loading: Partial<Record<Mood, Promise<void>>> = {};
 let cur: { src: AudioBufferSourceNode; g: GainNode } | null = null;
 let want: Mood = "menu";
 let playing = false;
-const MUSIC_VOL = 0.55;
 
 function load(name: Mood) {
   return (loading[name] ??= fetch(`/audio/${name}.mp3`)
@@ -115,8 +121,8 @@ function fadeTo(name: Mood) {
   if (cur) { cur.g.gain.cancelScheduledValues(t); cur.g.gain.setValueAtTime(cur.g.gain.value, t); cur.g.gain.linearRampToValueAtTime(0, t + 1.2); const old = cur.src; setTimeout(() => old.stop(), 1400); }
   const src = c.createBufferSource(), g = c.createGain();
   src.buffer = buf; src.loop = true;
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(muted || !musicOn ? 0 : MUSIC_VOL, t + 1.2);
-  src.connect(g).connect(master); src.start();
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1.2);
+  src.connect(g).connect(bus); src.start();
   cur = { src, g };
   return true;
 }
@@ -148,6 +154,9 @@ export const music = {
   },
 };
 
-export function setMuted(m: boolean) { muted = m; if (cur) cur.g.gain.value = m || !musicOn ? 0 : MUSIC_VOL; }
-export function setMusicOn(on: boolean) { musicOn = on; if (cur) cur.g.gain.value = muted || !on ? 0 : MUSIC_VOL; }
+export function setMuted(m: boolean) { muted = m; applyBus(); }
+export function setMusicOn(on: boolean) { musicOn = on; applyBus(); }
 export const unlockAudio = () => { ensure(); };
+
+// Al volver a la pestaña o a la app, el navegador puede haber pausado el audio: se reanuda.
+if (typeof document !== "undefined") document.addEventListener("visibilitychange", () => { if (!document.hidden && ctx?.state === "suspended") void ctx.resume(); });

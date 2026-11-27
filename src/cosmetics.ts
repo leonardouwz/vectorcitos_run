@@ -8,11 +8,13 @@ export interface Item {
   /** Solo "skin": cuántos grados se gira el color verde original. */
   hue?: number;
   /** Solo "skin": acabado especial. "metal" = cromado; "cycle" = el color cambia sin parar. */
-  finish?: "metal" | "cycle";
+  finish?: "metal" | "cycle" | "dark" | "dev";
   /** Solo "trail": color de las chispas y de las líneas de velocidad ("rainbow" = cambia). */
   trail?: number | "rainbow";
   /** Solo "trail": forma de cada partícula. */
   shape?: "dot" | "heart" | "star" | "flame";
+  /** Solo para la cuenta de desarrollador: no se vende, se ve y se pone gratis desde el modo admin. */
+  admin?: true;
 }
 
 export const SLOTS: Slot[] = ["head", "face", "body", "skin", "trail"];
@@ -49,6 +51,22 @@ export const ITEMS: Item[] = [
   { id: "trail-stars", slot: "trail", price: 260, icon: "stars", trail: "rainbow", shape: "star", name: { es: "Lluvia de estrellas", en: "Star shower" }, blurb: { es: "Estrellas de todos los colores.", en: "Stars of every color." } },
   { id: "trail-fire", slot: "trail", price: 450, icon: "flames", trail: 0xff7a1a, shape: "flame", name: { es: "Fuego", en: "Fire" }, blurb: { es: "Dejas el suelo en llamas.", en: "You set the ground ablaze." } },
   { id: "trail-rainbow", slot: "trail", price: 720, icon: "rainbow", trail: "rainbow", shape: "dot", name: { es: "Estela arcoíris", en: "Rainbow trail" }, blurb: { es: "Una cinta de colores detrás de ti.", en: "A ribbon of color behind you." } },
+  { id: "propeller", slot: "head", price: 110, icon: "propeller", name: { es: "Gorra de hélice", en: "Propeller cap" }, blurb: { es: "La hélice gira más rápido cuanto más corres.", en: "The propeller spins faster the faster you run." } },
+  { id: "chef", slot: "head", price: 130, icon: "chef", name: { es: "Gorro de chef", en: "Chef hat" }, blurb: { es: "Cocina frases perfectas.", en: "Cook up perfect phrases." } },
+  { id: "headband", slot: "head", price: 220, icon: "headband", name: { es: "Cinta ninja", en: "Ninja headband" }, blurb: { es: "Sigilo, precisión y dedos veloces.", en: "Stealth, precision and fast fingers." } },
+  { id: "cowboy", slot: "head", price: 280, icon: "cowboy", name: { es: "Sombrero vaquero", en: "Cowboy hat" }, blurb: { es: "El más rápido del oeste del teclado.", en: "Fastest typist in the keyboard west." } },
+  { id: "heartglasses", slot: "face", price: 100, icon: "heartglasses", name: { es: "Gafas de corazón", en: "Heart glasses" }, blurb: { es: "Ves el mundo de color rosa.", en: "See the world in pink." } },
+  { id: "tie", slot: "body", price: 90, icon: "tie", name: { es: "Corbata", en: "Necktie" }, blurb: { es: "Listo para la reunión... de teclas.", en: "Ready for the big meeting." } },
+  { id: "medal", slot: "body", price: 170, icon: "medal", name: { es: "Medalla de oro", en: "Gold medal" }, blurb: { es: "Para campeones de la velocidad.", en: "For speed champions." } },
+  { id: "skin-red", slot: "skin", price: 120, icon: "paint", hue: -150, name: { es: "Rojo fuego", en: "Fire red" }, blurb: { es: "Energía a tope.", en: "Full of energy." } },
+  { id: "skin-cyan", slot: "skin", price: 120, icon: "paint", hue: 30, name: { es: "Turquesa", en: "Turquoise" }, blurb: { es: "Un caribe en tu pantalla.", en: "A Caribbean sea on your screen." } },
+  { id: "skin-lime", slot: "skin", price: 100, icon: "paint", hue: -55, name: { es: "Lima eléctrica", en: "Electric lime" }, blurb: { es: "Brilla hasta de día.", en: "Glows even in daylight." } },
+  { id: "skin-magenta", slot: "skin", price: 160, icon: "paint", hue: 150, name: { es: "Magenta neón", en: "Neon magenta" }, blurb: { es: "Puro estilo arcade.", en: "Pure arcade style." } },
+  { id: "skin-obsidian", slot: "skin", price: 480, icon: "gem", hue: 0, finish: "dark", name: { es: "Obsidiana", en: "Obsidian" }, blurb: { es: "Oscuro como la noche, con brillo en los bordes.", en: "Dark as night, with glowing edges." } },
+  { id: "skin-dev", slot: "skin", price: 1, icon: "devbadge", hue: 0, finish: "dev", admin: true, name: { es: "Desarrollador", en: "Developer" }, blurb: { es: "Código verde corriendo por dentro. Solo para el equipo.", en: "Green code running inside. Team only." } },
+  { id: "devbadge", slot: "body", price: 1, icon: "devbadge", admin: true, name: { es: "Insignia dev", en: "Dev badge" }, blurb: { es: "La terminal del creador.", en: "The creator's terminal." } },
+  { id: "trail-neon", slot: "trail", price: 120, icon: "sparks", trail: 0x17ff93, shape: "dot", name: { es: "Neón verde", en: "Green neon" }, blurb: { es: "El brillo de Vectorcito.", en: "Vectorcito's own glow." } },
+  { id: "trail-ice", slot: "trail", price: 210, icon: "stars", trail: 0x9fe8ff, shape: "star", name: { es: "Cristales de hielo", en: "Ice crystals" }, blurb: { es: "Un camino helado y brillante.", en: "A shimmering frozen path." } },
 ];
 
 export const SLOT_NAMES: Record<Slot, Record<Lang, string>> = {
@@ -66,12 +84,18 @@ export const RARITY_NAMES: Record<Rarity, Record<Lang, string>> = {
   epic: { es: "Épico", en: "Epic" },
   legendary: { es: "Legendario", en: "Legendary" },
 };
+export const rarityOfItem = (i: Item): Rarity => (i.admin ? "legendary" : rarityOf(i.price));
 /** Rareza según el precio: se ve en el borde de cada tarjeta y en los efectos de la compra. */
 export const rarityOf = (price: number): Rarity => (price >= 700 ? "legendary" : price >= 300 ? "epic" : price >= 120 ? "rare" : "common");
 
-/** Monedas por partida: estrellas, velocidad y un extra por el modo. */
-export function coinsFor(o: { kind: "level" | "daily" | "time"; stars: number; wpm: number; score: number; isBest: boolean }) {
-  return o.stars * 5 + Math.round(o.wpm / 10) + (o.kind === "daily" ? 20 : 0) + (o.kind === "time" ? Math.floor(o.score / 200) : 0) + (o.isBest ? 5 : 0);
+/** Combo: cada 3 palabras seguidas sin errores sube un nivel (x1 → x5). */
+export const comboTier = (words: number) => Math.min(5, 1 + Math.floor(words / 3));
+/** Monedas que da una palabra limpia: valen tanto como el nivel de combo en que se completa. */
+export const comboCoins = (wordsInRow: number) => comboTier(wordsInRow);
+
+/** Monedas por partida: estrellas, velocidad, récord, estrellas nuevas y un extra por el modo. El combo se suma aparte. */
+export function coinsFor(o: { kind: "level" | "daily" | "time"; stars: number; wpm: number; score: number; isBest: boolean; newStars?: number }) {
+  return o.stars * 8 + Math.round(o.wpm / 8) + (o.kind === "daily" ? 25 : 0) + (o.kind === "time" ? Math.floor(o.score / 150) : 0) + (o.isBest ? 8 : 0) + (o.newStars ?? 0) * 10;
 }
 
 /** Regalo del día: sube con la racha del reto diario (hasta 10 días). */
