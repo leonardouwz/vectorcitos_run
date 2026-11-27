@@ -12,7 +12,7 @@ export interface Item {
   /** Solo "trail": color de las chispas y de las líneas de velocidad ("rainbow" = cambia). */
   trail?: number | "rainbow";
   /** Solo "trail": forma de cada partícula. */
-  shape?: "dot" | "heart" | "star" | "flame";
+  shape?: "dot" | "heart" | "star" | "flame" | "flake";
   /** Solo para la cuenta de desarrollador: no se vende, se ve y se pone gratis desde el modo admin. */
   admin?: true;
 }
@@ -66,7 +66,7 @@ export const ITEMS: Item[] = [
   { id: "skin-dev", slot: "skin", price: 1, icon: "devbadge", hue: 0, finish: "dev", admin: true, name: { es: "Desarrollador", en: "Developer" }, blurb: { es: "Código verde corriendo por dentro. Solo para el equipo.", en: "Green code running inside. Team only." } },
   { id: "devbadge", slot: "body", price: 1, icon: "devbadge", admin: true, name: { es: "Insignia dev", en: "Dev badge" }, blurb: { es: "La terminal del creador.", en: "The creator's terminal." } },
   { id: "trail-neon", slot: "trail", price: 120, icon: "sparks", trail: 0x17ff93, shape: "dot", name: { es: "Neón verde", en: "Green neon" }, blurb: { es: "El brillo de Vectorcito.", en: "Vectorcito's own glow." } },
-  { id: "trail-ice", slot: "trail", price: 210, icon: "stars", trail: 0x9fe8ff, shape: "star", name: { es: "Cristales de hielo", en: "Ice crystals" }, blurb: { es: "Un camino helado y brillante.", en: "A shimmering frozen path." } },
+  { id: "trail-ice", slot: "trail", price: 210, icon: "stars", trail: 0x9fe8ff, shape: "flake", name: { es: "Cristales de hielo", en: "Ice crystals" }, blurb: { es: "Un camino helado y brillante.", en: "A shimmering frozen path." } },
 ];
 
 export const SLOT_NAMES: Record<Slot, Record<Lang, string>> = {
