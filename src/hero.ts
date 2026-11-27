@@ -9,6 +9,8 @@ export interface HeroState {
   dt: number; time: number; T: number; speed: number;
   jump: number; hop: number; boost: number; sad: number; celebrate: number; shake: number; flash: number;
   reduce: boolean;
+  /** Carril donde está (concepto Esquiva). */
+  x?: number;
 }
 
 /** Puntos del cuerpo donde se colocan los accesorios, en unidades del mundo. */
@@ -347,7 +349,7 @@ export function createHero(scene: THREE.Scene, envTex: THREE.Texture | null = nu
       const stretch = 1 + (s.jump > 0.5 ? 0.14 : s.jump > 0 ? -0.1 : 0) * Math.min(1, s.jump * 2);
       hero.scale.set(1 / Math.sqrt(stretch), stretch, 1 / Math.sqrt(stretch));
       hero.rotation.y = s.celebrate > 0 ? s.celebrate * Math.PI * 4 : 0;
-      hero.position.x = (Math.random() - 0.5) * s.shake * 0.25;
+      hero.position.x = (s.x ?? 0) + (Math.random() - 0.5) * s.shake * 0.25;
       // inclinación: se echa hacia adelante al correr rápido y se balancea al pisar
       body.rotation.x = -Math.min(s.speed / 60, 0.22);
       body.rotation.z = s.reduce ? 0 : Math.sin(s.T * 1.6) * 0.04;

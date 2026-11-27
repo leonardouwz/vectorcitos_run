@@ -387,7 +387,7 @@ function run(cfg: RunCfg) {
     let ready = false, over = false, leaving = false, streak = 0, t0 = 0;
     let wordsInRow = 0, wordDirty = false, comboCoinsGot = 0, comboMax = 1, comboWords = 0;
     runCombo = { coins: 0, max: 1, words: 0 };
-    const GAP = 1.5, CPS = { easy: 1.9, medium: 2.7, hard: 3.5, practice: 2 }[cfg.diff];
+    const GAP = 2.6, CPS = { easy: 1.9, medium: 2.7, hard: 3.5, practice: 2 }[cfg.diff];
     let front = 10, raf = 0;
     const timers: number[] = [];
 
@@ -398,7 +398,7 @@ function run(cfg: RunCfg) {
       textEl.innerHTML = text.split(" ").map((w) =>
         `<span class="wd">${[...w].map((c) => `<span class="ch">${esc(c)}</span>`).join("")}</span>`).join('<span class="ch sp"> </span>');
       chars = [...textEl.querySelectorAll<HTMLElement>(".ch")];
-      if (cfg.dodge) { world.dodge.begin(text); world.dodge.camera(true); front = 10; }
+      if (cfg.dodge) { world.dodge.begin(text); world.dodge.camera(true); front = 9; }
       chars[0].classList.add("now");
       phrase.setAttribute("aria-label", text);
       highlightKey(kbdbox, cur.current, store.lang);

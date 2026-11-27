@@ -16,6 +16,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   // En teléfonos se cuida la batería: sin brillo de neón y con menos detalle.
   const low = device.kind === "phone";
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !low });
+  renderer.localClippingEnabled = true; // el tajo del concepto Esquiva corta las letras con planos
   renderer.setPixelRatio(Math.min(devicePixelRatio, low ? 1.5 : 2));
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x050429, 25, 95);
@@ -54,6 +55,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   // Estado
   type Mode = "menu" | "play" | "shop";
   let mode: Mode = "menu";
+  let heroX = 0; // carril de Vectorcito (concepto Esquiva)
   let dodgeCam = false; // concepto Esquiva: cámara más alta para ver venir las letras
   let kbdOn = false; // ¿hay teclado de colores en pantalla? Cambia dónde se ve a Vectorcito.
   let progress = 0, speed = 3, boost = 0, shake = 0, jump = 0, celebrate = 0, hop = 0, sad = 0, flash = 0, travelled = 0;
@@ -87,7 +89,8 @@ export function createScene(canvas: HTMLCanvasElement) {
     const run = reduce ? 0 : speed * dt;
     travelled += run;
     world.update(dt, run, time, speed, mode === "play");
-    hero.update({ dt, time, T: travelled, speed, jump, hop, boost, sad, celebrate, shake, flash, reduce });
+    heroX += ((dodgeCam ? dodge.targetX : 0) - heroX) * Math.min(1, dt * 9); // corre hacia la letra de al frente
+    hero.update({ dt, time, T: travelled, speed, jump, hop, boost, sad, celebrate, shake, flash, reduce, x: heroX });
 
     camera.fov = 60 + boost * 5 + (mode === "play" ? Math.min(speed / 4, 4) : 0);
     camera.updateProjectionMatrix();
@@ -104,8 +107,8 @@ export function createScene(canvas: HTMLCanvasElement) {
       // en pantallas anchas Vectorcito queda a la derecha; en teléfonos verticales, abajo, fuera de los botones
       camera.lookAt(wide ? -4.6 : 0, wide ? 1.7 : camera.aspect < 0.75 ? 5.2 : 3.4, 0);
     } else if (dodgeCam) {
-      camera.position.set(0, 4.6, 9.2);
-      camera.lookAt(0, -0.6, -6.5);
+      camera.position.set(heroX * 0.5, 4.8, 9.6);
+      camera.lookAt(heroX * 0.4, -0.4, -7);
     } else {
       camera.position.set(0, (kbdOn ? 2.3 : 3) + progress * 0.4, 7.5);
       camera.lookAt(0, kbdOn ? 2.6 : 4.4, -6);
