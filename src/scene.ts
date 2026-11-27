@@ -8,6 +8,7 @@ import type { Diff } from "./content";
 import { ITEMS } from "./cosmetics";
 import { device } from "./device";
 import { createHero } from "./hero";
+import { createDodge } from "./dodge";
 import { createParticles } from "./trails";
 import { createWorld, type Theme } from "./world";
 
@@ -45,6 +46,7 @@ export function createScene(canvas: HTMLCanvasElement) {
 
   // Chispas y estelas (src/trails.ts)
   const fx = createParticles(scene, renderer, low);
+  const dodge = createDodge(scene);
   let trailOn = false;
   const o = new THREE.Vector3();
   const burst = (hex: number, n: number, power: number) => { hero.headWorld(o); fx.burst(o.x, o.y, hex, n, power); };
@@ -52,6 +54,7 @@ export function createScene(canvas: HTMLCanvasElement) {
   // Estado
   type Mode = "menu" | "play" | "shop";
   let mode: Mode = "menu";
+  let dodgeCam = false; // concepto Esquiva: cámara más alta para ver venir las letras
   let kbdOn = false; // ¿hay teclado de colores en pantalla? Cambia dónde se ve a Vectorcito.
   let progress = 0, speed = 3, boost = 0, shake = 0, jump = 0, celebrate = 0, hop = 0, sad = 0, flash = 0, travelled = 0;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -100,6 +103,9 @@ export function createScene(canvas: HTMLCanvasElement) {
       camera.position.set(Math.sin(time * 0.25) * (wide ? 3 : 6), wide ? 2.6 : 3.2, 8);
       // en pantallas anchas Vectorcito queda a la derecha; en teléfonos verticales, abajo, fuera de los botones
       camera.lookAt(wide ? -4.6 : 0, wide ? 1.7 : camera.aspect < 0.75 ? 5.2 : 3.4, 0);
+    } else if (dodgeCam) {
+      camera.position.set(0, 4.6, 9.2);
+      camera.lookAt(0, -0.6, -6.5);
     } else {
       camera.position.set(0, (kbdOn ? 2.3 : 3) + progress * 0.4, 7.5);
       camera.lookAt(0, kbdOn ? 2.6 : 4.4, -6);
@@ -110,6 +116,8 @@ export function createScene(canvas: HTMLCanvasElement) {
   tick();
 
   return {
+    /** Concepto "Esquiva": las letras de la frase vienen hacia Vectorcito. */
+    dodge: Object.assign(dodge, { camera(on: boolean) { dodgeCam = on; } }),
     theme(d: Diff | "menu") { world.setTheme(d as Theme); },
     mode(m: Mode) { mode = m; progress = 0; },
     /** Muestra lo que lleva puesto el jugador: accesorios, color y estela. */

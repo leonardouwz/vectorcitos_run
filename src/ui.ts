@@ -341,8 +341,11 @@ function info(l: Level) {
       <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
       <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
       <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
+      <button class="btn ghost-b concept" id="dodge">🧪 Esquiva (concepto)</button>
+      <p class="hint">Concepto: las letras de la frase corren hacia Vectorcito. Escríbelas a tiempo para esquivarlas.</p>
     </main>`, (r) => {
     wireToolbar(r, () => info(l));
+    on(r, "#dodge", () => play(l, undefined, true));
     on(r, "#back", levelMap);
     on(r, "#go", () => play(l));
   });
@@ -355,6 +358,7 @@ interface RunCfg {
   next: () => string | undefined; // siguiente frase; undefined = no hay más
   total?: number; // cuántas frases tendrá (para la barra y el contador)
   limit?: number; // segundos de cuenta atrás (contrarreloj)
+  dodge?: boolean; // CONCEPTO: las letras de la frase vienen hacia Vectorcito y hay que esquivarlas escribiéndolas a tiempo
   finish: (rounds: Round[]) => void;
   back: () => void;
 }
@@ -383,6 +387,8 @@ function run(cfg: RunCfg) {
     let ready = false, over = false, leaving = false, streak = 0, t0 = 0;
     let wordsInRow = 0, wordDirty = false, comboCoinsGot = 0, comboMax = 1, comboWords = 0;
     runCombo = { coins: 0, max: 1, words: 0 };
+    const GAP = 1.5, CPS = { easy: 1.9, medium: 2.7, hard: 3.5, practice: 2 }[cfg.diff];
+    let front = 10, raf = 0;
     const timers: number[] = [];
 
     const load = (text: string) => {
@@ -392,6 +398,7 @@ function run(cfg: RunCfg) {
       textEl.innerHTML = text.split(" ").map((w) =>
         `<span class="wd">${[...w].map((c) => `<span class="ch">${esc(c)}</span>`).join("")}</span>`).join('<span class="ch sp"> </span>');
       chars = [...textEl.querySelectorAll<HTMLElement>(".ch")];
+      if (cfg.dodge) { world.dodge.begin(text); world.dodge.camera(true); front = 10; }
       chars[0].classList.add("now");
       phrase.setAttribute("aria-label", text);
       highlightKey(kbdbox, cur.current, store.lang);
@@ -440,11 +447,27 @@ function run(cfg: RunCfg) {
       } else if (rounds[0].start) clock.textContent = `${Math.floor((performance.now() - rounds[0].start) / 1000)}s`;
     }, 200));
 
+
+    if (cfg.dodge) { // CONCEPTO Esquiva: las letras avanzan hacia Vectorcito
+      let last = performance.now();
+      const frame = (now: number) => {
+        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        if (ready && !over) {
+          front -= GAP * CPS * dt;
+          if (front <= 1) { // la letra lo alcanzó: golpe
+            cur.key("\u0000", now); failed(); world.dodge.hit(); front += 4.5; refresh();
+          }
+        }
+        world.dodge.set(cur.pos, front, GAP, dt, now / 1000);
+        raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { leaving = true; cfg.back(); } };
     const focus = () => input.focus({ preventScroll: true });
     addEventListener("keydown", onKey);
     r.addEventListener("pointerdown", focus);
-    cleanup = () => { leaving = true; timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); removeEventListener("keydown", onKey); };
+    cleanup = () => { leaving = true; cancelAnimationFrame(raf); if (cfg.dodge) { world.dodge.end(); world.dodge.camera(false); } timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); removeEventListener("keydown", onKey); };
 
     const helpBtn = r.querySelector<HTMLElement>("#helpbtn");
     helpBtn?.addEventListener("click", () => {
@@ -460,20 +483,25 @@ function run(cfg: RunCfg) {
     input.addEventListener("blur", () => { phrase.classList.add("idle"); if (!leaving && !over) setTimeout(focus, 50); });
     focus();
 
+    const failed = () => {
+      streak = 0; wordDirty = true;
+      if (wordsInRow >= 3) { sfx.error(); streakEl.classList.remove("lost"); void streakEl.offsetWidth; streakEl.classList.add("lost"); }
+      wordsInRow = 0;
+      sfx.error(); world.error();
+      if (device.touch && !store.muted) navigator.vibrate?.(25);
+      phrase.classList.remove("err"); void phrase.offsetWidth; phrase.classList.add("err");
+    };
+
     const press = (c: string) => {
       if (!ready || over) return;
       const before = cur.pos;
       const hit = cur.key(c, performance.now());
       if (hit === "none") return;
       if (hit === "error") {
-        streak = 0; wordDirty = true;
-        if (wordsInRow >= 3) { sfx.error(); streakEl.classList.remove("lost"); void streakEl.offsetWidth; streakEl.classList.add("lost"); }
-        wordsInRow = 0;
-        sfx.error(); world.error();
-        if (device.touch && !store.muted) navigator.vibrate?.(25);
-        phrase.classList.remove("err"); void phrase.offsetWidth; phrase.classList.add("err");
+        failed();
       } else {
         streak++;
+        if (cfg.dodge) front += GAP; // esquivada: la siguiente letra viene detrás
         chars[before].classList.remove("now");
         chars[before].classList.add("done");
         chars[cur.pos]?.classList.add("now");
@@ -523,10 +551,10 @@ function run(cfg: RunCfg) {
 
 const once = (text: string) => { let used = false; return () => (used ? undefined : ((used = true), text)); };
 
-function play(l: Level, vs?: Challenge) {
+function play(l: Level, vs?: Challenge, dodge = false) {
   run({
-    diff: l.diff, title: `${lvlName(l)} · ${tr(l.diff)}`, next: once(l.text[store.lang]),
-    finish: ([round]) => results({ kind: "level", level: l, title: lvlName(l), sum: summarize([round], round.seconds), secs: round.seconds, retry: () => play(l, vs), vs }),
+    dodge, diff: l.diff, title: `${lvlName(l)} · ${tr(l.diff)}${dodge ? " · Esquiva" : ""}`, next: once(l.text[store.lang]),
+    finish: ([round]) => results({ kind: "level", level: l, title: lvlName(l), sum: summarize([round], round.seconds), secs: round.seconds, retry: () => play(l, vs, dodge), vs }),
     back: levelMap,
   });
 }

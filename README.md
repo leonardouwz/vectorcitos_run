@@ -112,3 +112,9 @@ La clave se comprueba en el servidor (`api/admin`, `api/levels`); el navegador s
 ## Combos y monedas
 
 Cada palabra sin errores suma al combo (x2 a las 3, x3 a las 6… hasta x5) y da tantas monedas como el nivel de combo. Un error lo rompe. Al terminar se suman estrellas, velocidad, récord y un bono por cada estrella nueva (`coinsFor` y `comboTier` en `src/cosmetics.ts`).
+
+## Ramas
+
+- `main`: lo que está publicado. Las ideas ya definidas se desarrollan en ramas `claude/…` y entran por pull request.
+- `claude/conceptos`: ideas conceptuales para probar cómo se sienten; no se mezclan con `main` hasta decidirlo.
+  - **Esquiva** (en la pantalla de cada nivel, botón 🧪): las letras de la frase corren hacia Vectorcito; escribir la letra de al frente la esquiva y, si lo alcanza, cuenta como error y la fila retrocede (`src/dodge.ts`).
