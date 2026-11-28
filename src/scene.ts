@@ -49,6 +49,16 @@ export function createScene(canvas: HTMLCanvasElement) {
   const o = new THREE.Vector3();
   const burst = (hex: number, n: number, power: number) => { hero.headWorld(o); fx.burst(o.x, o.y, hex, n, power); };
 
+  // Error: onda roja que sale de Vectorcito y estrellitas de mareo que giran sobre su cabeza
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 48).rotateX(-Math.PI / 2), ringMat);
+  ring.visible = false; scene.add(ring);
+  const dizzy = new THREE.Group();
+  const dizzyMat = new THREE.MeshBasicMaterial({ color: 0xffd54a });
+  for (let k = 0; k < 4; k++) dizzy.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.16), dizzyMat));
+  dizzy.visible = false; scene.add(dizzy);
+  let wave = 0; // 0 = sin onda; sube a 1 mientras se expande
+
   // Estado
   type Mode = "menu" | "play" | "shop";
   let mode: Mode = "menu";
@@ -74,7 +84,8 @@ export function createScene(canvas: HTMLCanvasElement) {
     const target = (mode === "play" ? 6 + progress * 10 : 3) + boost * 12;
     speed += (target - speed) * Math.min(1, dt * 4);
     boost = Math.max(0, boost - dt * 2.5);
-    shake = Math.max(0, shake - dt * 3);
+    shake = Math.max(0, shake - dt * 2.2);
+    wave = Math.max(0, wave - dt * 1.6);
     jump = Math.max(0, jump - dt * 2.2);
     celebrate = Math.max(0, celebrate - dt * 0.4);
     hop = Math.max(0, hop - dt * 6);
@@ -85,6 +96,17 @@ export function createScene(canvas: HTMLCanvasElement) {
     travelled += run;
     world.update(dt, run, time, speed, mode === "play");
     hero.update({ dt, time, T: travelled, speed, jump, hop, boost, sad, celebrate, shake, flash, reduce });
+
+
+    // onda de error y mareo
+    if (wave > 0 && !reduce) {
+      const k = 1 - wave; // 0 → 1
+      ring.visible = true; ring.position.set(hero.group.position.x, 0.08, 0); ring.scale.setScalar(0.6 + k * 7); ringMat.opacity = wave * 0.9;
+    } else ring.visible = false;
+    if (sad > 0 && !reduce) {
+      dizzy.visible = true; hero.headWorld(o); dizzy.position.set(o.x, o.y + 0.55, 0);
+      dizzy.children.forEach((c, i) => { const a = time * 7 + (i * Math.PI) / 2; c.position.set(Math.cos(a) * 0.55, Math.sin(time * 9 + i) * 0.08, Math.sin(a) * 0.35); c.rotation.y = time * 5; });
+    } else dizzy.visible = false;
 
     camera.fov = 60 + boost * 5 + (mode === "play" ? Math.min(speed / 4, 4) : 0);
     camera.updateProjectionMatrix();
@@ -103,6 +125,11 @@ export function createScene(canvas: HTMLCanvasElement) {
     } else {
       camera.position.set(0, (kbdOn ? 2.3 : 3) + progress * 0.4, 7.5);
       camera.lookAt(0, kbdOn ? 2.6 : 4.4, -6);
+    }
+    if (shake > 0 && !reduce && mode !== "shop") { // la cámara se sacude con el error
+      const m = shake * shake * 0.35;
+      camera.position.x += (Math.random() - 0.5) * m; camera.position.y += (Math.random() - 0.5) * m;
+      camera.rotation.z += (Math.random() - 0.5) * m * 0.06;
     }
     if (composer) composer.render(); else renderer.render(scene, camera);
     requestAnimationFrame(tick);
@@ -126,7 +153,7 @@ export function createScene(canvas: HTMLCanvasElement) {
     progress(p: number) { progress = p; },
     key() { hop = 1; },
     word() { boost = 1; jump = 1; burst(0x17ff93, 14, 4); },
-    error() { shake = 1; sad = 1; flash = 1; burst(0xff7070, 6, 2.5); },
+    error() { shake = 1; sad = 1.2; flash = 1; wave = 1; burst(0xff5050, 18, 4.5); },
     win() { celebrate = 1; burst(0xffc107, 40, 8); burst(0x17ff93, 30, 6); },
   };
 }

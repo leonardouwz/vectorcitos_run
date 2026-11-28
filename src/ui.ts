@@ -10,6 +10,7 @@ import { adminLogin, adminLogout, custom, isAdmin, saveLevels } from "./remote";
 import { disablePush, enablePush, pushState, syncPush, type PushState } from "./push";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
+import { channel, versionText } from "./version";
 import { store } from "./store";
 import { music, setMusicOn, setMuted, sfx, unlockAudio } from "./audio";
 import type { createScene } from "./scene";
@@ -51,6 +52,20 @@ const toolbar = () => `
 /** Encabezado común: volver, título y algo a la derecha (monedas, jugador...). */
 const topbar = (title: string, right = "", back = true) =>
   `<header class="top">${back ? `<button class="back" id="back" aria-label="${tr("back")}">←</button>` : ""}<h2>${title}</h2><span class="right">${right}</span></header>`;
+
+/** Error: viñeta roja en los bordes, sacudida de la pantalla de juego y, si había combo, cartel de "combo perdido". Vive fuera de #app. */
+function errorFx(lostCombo: number) {
+  const el = document.getElementById("errfx") ?? document.body.appendChild(Object.assign(document.createElement("div"), { id: "errfx", ariaHidden: "true" }));
+  el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  const play = document.querySelector<HTMLElement>(".play");
+  if (play) { play.classList.remove("jolt"); void play.offsetWidth; play.classList.add("jolt"); }
+  if (lostCombo >= 1) { // cualquier racha de palabras limpias que se rompe avisa
+    const t = document.createElement("div");
+    t.className = "lostfx"; t.innerHTML = `${ic("combo")} ${tr("combo")} x${comboTier(lostCombo)} ✕ <small>${lostCombo} ${tr("cleanWords")}</small>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1100);
+  }
+}
 
 /** Aviso breve abajo de la pantalla. Vive fuera de #app para sobrevivir al cambio de pantalla. */
 let toastTimer = 0;
@@ -116,6 +131,7 @@ export function home() {
         ${store.current ? `<button class="ghost" id="switch">${tr("switchPlayer")}</button>` : ""}
         <button class="ghost" id="box">${ic("box")} ${tr("box")}</button>
       </div>
+      <span class="ver" data-channel="${channel}" title="${tr("version")}">${versionText}</span>
     </main>`, (r) => {
     wireToolbar(r, home);
     on(r, "#box", () => suggest(home));
@@ -467,6 +483,7 @@ function run(cfg: RunCfg) {
       if (hit === "none") return;
       if (hit === "error") {
         streak = 0; wordDirty = true;
+        errorFx(wordsInRow);
         if (wordsInRow >= 3) { sfx.error(); streakEl.classList.remove("lost"); void streakEl.offsetWidth; streakEl.classList.add("lost"); }
         wordsInRow = 0;
         sfx.error(); world.error();
