@@ -77,9 +77,22 @@ export function createScene(canvas: HTMLCanvasElement) {
   addEventListener("resize", resize);
   resize();
 
+  // Resolución adaptable: si el equipo no da la talla, baja la nitidez poco a poco (y la sube si sobra).
+  const maxPR = Math.min(devicePixelRatio, low ? 1.5 : 2);
+  let pr = maxPR, frames = 0, acc = 0;
+  const adapt = (dt: number) => {
+    acc += dt;
+    if (++frames < 90) return;
+    const avg = acc / frames; frames = 0; acc = 0;
+    const next = avg > 0.028 ? Math.max(1, pr - 0.25) : avg < 0.0185 ? Math.min(maxPR, pr + 0.25) : pr;
+    if (next !== pr) { pr = next; renderer.setPixelRatio(pr); resize(); }
+  };
+
   const clock = new THREE.Clock();
   const tick = () => {
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const rawDt = clock.getDelta();
+    const dt = Math.min(rawDt, 0.05);
+    if (rawDt < 0.2) adapt(rawDt); // los cuadros muy largos (pestaña en segundo plano) no cuentan
     const time = clock.elapsedTime;
     const target = (mode === "play" ? 6 + progress * 10 : 3) + boost * 12;
     speed += (target - speed) * Math.min(1, dt * 4);

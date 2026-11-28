@@ -149,6 +149,7 @@ export function createParticles(scene: THREE.Scene, renderer: THREE.WebGLRendere
     },
     /** Cada cuadro: mueve las partículas y suelta las nuevas de la estela. `x`,`y`: dónde está el jugador. */
     update(dt: number, t: number, worldSpeed: number, x: number, y: number, emitting: boolean) {
+      uniforms.uPR.value = renderer.getPixelRatio(); // la resolución puede cambiar sola
       if (style && emitting) {
         acc += dt * style.rate;
         while (acc >= 1) {

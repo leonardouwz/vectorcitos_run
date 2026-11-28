@@ -304,3 +304,15 @@ html[data-kind="phone"] .detail { grid-template-columns: auto 1fr; } html[data-k
 /* Versión del juego (solo en el inicio) */
 .ver { position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); font: 400 .8rem var(--mono); color: var(--suave); opacity: .75; pointer-events: none; text-shadow: 0 1px 4px #000; }
 .ver[data-channel="test"], .ver[data-channel="dev"] { color: #ffd54a; } .ver[data-channel="concept"] { color: #ff8ad6; }
+
+/* Interfaz fluida: respuesta inmediata al tocar, transiciones suaves y sin repintar de más */
+button, .mode, .card, .lvl, .tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.btn, .ghost, .mode, .card, .lvl, .tab, .back { transition: transform .12s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease, color .18s ease; }
+.btn:active, .ghost:active, .mode:active, .card:active, .lvl.open:active, .tab:active, .back:active { transform: scale(.96); }
+.screen.still { animation: none; }
+.swap > * { animation: swapin .22s ease-out both; }
+.swap > *:nth-child(2) { animation-delay: 20ms; } .swap > *:nth-child(3) { animation-delay: 40ms; } .swap > *:nth-child(4) { animation-delay: 60ms; } .swap > *:nth-child(n+5) { animation-delay: 80ms; }
+@keyframes swapin { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+.detail { animation: swapin .2s ease-out; }
+.shopbox, .grid, .cards, .modes { contain: layout style; }
+@media (prefers-reduced-motion: reduce) { .swap > *, .detail { animation: none; } .btn:active, .mode:active, .card:active, .lvl.open:active, .tab:active { transform: none; } }
