@@ -234,7 +234,7 @@ function shop() {
   /** Las tarjetas se reparten en páginas que caben en pantalla: nunca hay que deslizar. */
   let per = 8;
   const fit = (c: HTMLElement) => {
-    const phone = device.kind === "phone", minW = phone ? 92 : 124, minH = phone ? 96 : 112, gap = 8;
+    const phone = device.kind === "phone", minW = phone ? 92 : 124, minH = phone ? 74 : 72, gap = 8;
     const cols = Math.max(2, Math.floor((c.clientWidth + gap) / (minW + gap))), rows = Math.max(1, Math.floor((c.clientHeight + gap) / (minH + gap)));
     c.style.gridTemplateColumns = `repeat(${cols}, 1fr)`; c.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     per = cols * rows;
@@ -258,12 +258,14 @@ function shop() {
   show(`${toolbar()}
     <main class="wide shop">
       ${topbar(`${ic("shop")} ${tr("shop")}`, `<span id="coins">${ic("coin")} ${store.coinsText}</span>`)}
-      <div class="shopbox">
+      <div class="shopdock">
         <div id="sdetail"></div>
+        <div class="shopbox">
         <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
         <div class="cards" id="scards"></div>
         <div class="pager" id="spager"></div>
         <p class="hint" id="scount"></p>
+        </div>
       </div>
     </main>`, (r) => {
     wireToolbar(r, shop);
