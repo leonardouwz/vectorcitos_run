@@ -52,6 +52,20 @@ const toolbar = () => `
 const topbar = (title: string, right = "", back = true) =>
   `<header class="top">${back ? `<button class="back" id="back" aria-label="${tr("back")}">←</button>` : ""}<h2>${title}</h2><span class="right">${right}</span></header>`;
 
+/** Error: viñeta roja en los bordes, sacudida de la pantalla de juego y, si había combo, cartel de "combo perdido". Vive fuera de #app. */
+function errorFx(lostCombo: number) {
+  const el = document.getElementById("errfx") ?? document.body.appendChild(Object.assign(document.createElement("div"), { id: "errfx", ariaHidden: "true" }));
+  el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  const play = document.querySelector<HTMLElement>(".play");
+  if (play) { play.classList.remove("jolt"); void play.offsetWidth; play.classList.add("jolt"); }
+  if (lostCombo >= 3) {
+    const t = document.createElement("div");
+    t.className = "lostfx"; t.innerHTML = `${ic("combo")} ${tr("combo")} x${comboTier(lostCombo)} ✕`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1100);
+  }
+}
+
 /** Aviso breve abajo de la pantalla. Vive fuera de #app para sobrevivir al cambio de pantalla. */
 let toastTimer = 0;
 function toast(html: string) {
@@ -467,6 +481,7 @@ function run(cfg: RunCfg) {
       if (hit === "none") return;
       if (hit === "error") {
         streak = 0; wordDirty = true;
+        errorFx(wordsInRow);
         if (wordsInRow >= 3) { sfx.error(); streakEl.classList.remove("lost"); void streakEl.offsetWidth; streakEl.classList.add("lost"); }
         wordsInRow = 0;
         sfx.error(); world.error();
