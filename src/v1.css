@@ -44,10 +44,10 @@
 .h-name { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-pills { display: flex; gap: 8px; }
 .h-pill { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; background: var(--glass); backdrop-filter: blur(14px); border: 1px solid var(--stroke); border-radius: 999px; font: 700 .95rem var(--sans); font-variant-numeric: tabular-nums; }
-.h-pill.coin { color: var(--gold); } .h-pill.flame { color: #ff9a5a; } .h-pill .gl { width: 1.2em; height: 1.2em; }
+.h-pill.coin { color: var(--gold); } .h-pill.flame { color: #ff9a5a; } .h-pill .gl { width: 20px; height: 20px; fill: currentColor; fill-opacity: .22; stroke-width: 2.3; }
 
 /* ----- Navegación */
-.h-tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 66px; padding: 8px 4px; border: 0; background: transparent; color: var(--text-3); border-radius: var(--r-lg); font: 600 .72rem var(--sans); letter-spacing: .01em; cursor: pointer; transition: color .18s var(--ease), background-color .18s var(--ease), transform .12s var(--ease); }
+.h-tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 66px; padding: 8px 4px; border: 0; background: transparent; color: var(--text-2); border-radius: var(--r-lg); font: 600 .72rem var(--sans); letter-spacing: .01em; cursor: pointer; transition: color .18s var(--ease), background-color .18s var(--ease), transform .12s var(--ease); }
 .h-tab .gl { width: 26px; height: 26px; transition: transform .25s var(--spring); }
 .h-tab:hover { color: var(--text-2); background: rgb(255 255 255 / .04); }
 .h-tab:active { transform: scale(.94); }
@@ -85,7 +85,7 @@
 .h-prow:nth-child(2) .h-node { animation-delay: .08s; }
 @keyframes h-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
 .h-node:hover { transform: translateY(-2px); } .h-node:active { transform: scale(.94); }
-.h-node .h-n { display: grid; place-items: center; line-height: 1; } .h-node .h-n .gl { width: 22px; height: 22px; color: var(--text-3); }
+.h-node .h-n { display: grid; place-items: center; line-height: 1; } .h-node .h-n .gl { width: 22px; height: 22px; color: var(--text-2); }
 .h-node.done { background: linear-gradient(160deg, rgb(23 255 147 / .26), rgb(23 255 147 / .08)); border-color: rgb(23 255 147 / .6); }
 .h-node.now { background: var(--accent); border-color: #fff; color: var(--accent-ink); box-shadow: 0 0 0 5px rgb(23 255 147 / .22); animation: h-pop .38s var(--spring) both, h-pulse 2s ease-in-out .5s infinite; }
 @keyframes h-pulse { 50% { box-shadow: 0 0 0 10px rgb(23 255 147 / 0); } }

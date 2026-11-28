@@ -1,6 +1,6 @@
 // Iconos de interfaz (navegación, ajustes, estados): una sola familia de trazo para toda la UI.
 // Las pegatinas 3D de public/icons son para los objetos del juego; esto es lo que se usa para controlar.
-const base = (d: string, extra = "") => `<svg class="gl" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${extra}>${d}</svg>`;
+const base = (d: string, extra = "") => `<svg class="gl" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${extra}>${d}</svg>`;
 
 const PATHS = {
   play: '<path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8z"/>',
