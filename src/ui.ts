@@ -211,6 +211,7 @@ function guide(next: () => void) {
 let shopTab: Slot = "head";
 const SWATCH_BASE = 150; // el verde original, en grados de color
 
+let shopPage = 0;
 let preview: string | null = null; // lo que se está probando en la tienda (se ve en Vectorcito antes de comprar)
 function shop() {
   world.theme("menu");
@@ -222,7 +223,7 @@ function shop() {
   };
   const detailHtml = () => {
     const { worn, sel } = current();
-    if (!sel) return `<p class="hint">${tr("shopHint")}</p>`;
+    if (!sel) return `<div class="detail empty"><p class="hint">${tr("shopHint")}</p></div>`;
     const has = store.owns(sel.id), isOn = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
     const btn = has ? `<button class="btn ${isOn ? "ghost-b" : ""}" id="act">${isOn ? tr("unequip") : tr("equip")}</button>`
       : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
@@ -230,14 +231,27 @@ function shop() {
     return `<div class="detail ${rarityOfItem(sel)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
       <div><em class="tier">${RARITY_NAMES[rarityOfItem(sel)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
   };
+  /** Las tarjetas se reparten en páginas que caben en pantalla: nunca hay que deslizar. */
+  let per = 8;
+  const fit = (c: HTMLElement) => {
+    const phone = device.kind === "phone", minW = phone ? 92 : 124, minH = phone ? 96 : 112, gap = 8;
+    const cols = Math.max(2, Math.floor((c.clientWidth + gap) / (minW + gap))), rows = Math.max(1, Math.floor((c.clientHeight + gap) / (minH + gap)));
+    c.style.gridTemplateColumns = `repeat(${cols}, 1fr)`; c.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    per = cols * rows;
+  };
+  const pageItems = () => ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price);
   const cardsHtml = () => {
     const { worn, sel } = current();
-    return ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price).map((i) => {
+    return pageItems().slice(shopPage * per, shopPage * per + per).map((i) => {
       const has = store.owns(i.id), isOn = worn[i.slot] === i.id, isSel = sel?.id === i.id;
       return `<button class="card ${rarityOfItem(i)} ${isOn ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
         <span class="art">${i.hue !== undefined ? swatch(i) : ic(i.icon)}</span><b>${i.name[store.lang]}</b>
         <small>${has ? (isOn ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
     }).join("");
+  };
+  const pagerHtml = () => {
+    const pages = Math.max(1, Math.ceil(pageItems().length / per));
+    return pages > 1 ? `<button class="ghost" data-p="-1" aria-label="${tr("back")}" ${shopPage === 0 ? "disabled" : ""}>‹</button><span>${shopPage + 1} / ${pages}</span><button class="ghost" data-p="1" aria-label="${tr("next")}" ${shopPage >= pages - 1 ? "disabled" : ""}>›</button>` : "";
   };
   const countText = () => { const v = ITEMS.filter((i) => !i.admin || isAdmin()); return `${v.filter((i) => store.owns(i.id)).length} / ${v.length} ✦ ${tr("shopHint")}`; };
 
@@ -248,6 +262,7 @@ function shop() {
         <div id="sdetail"></div>
         <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
         <div class="cards" id="scards"></div>
+        <div class="pager" id="spager"></div>
         <p class="hint" id="scount"></p>
       </div>
     </main>`, (r) => {
@@ -257,7 +272,9 @@ function shop() {
     const paint = (what: { cards?: boolean } = { cards: true }) => {
       const { worn, sel } = current();
       q("#sdetail").innerHTML = detailHtml();
-      if (what.cards) q("#scards").innerHTML = cardsHtml();
+      fit(q("#scards"));
+      shopPage = Math.min(shopPage, Math.max(0, Math.ceil(pageItems().length / per) - 1));
+      if (what.cards) { q("#scards").innerHTML = cardsHtml(); q("#spager").innerHTML = pagerHtml(); }
       else r.querySelectorAll<HTMLElement>(".card").forEach((c) => { const on = c.dataset.id === sel?.id; c.classList.toggle("sel", on); c.setAttribute("aria-pressed", String(on)); });
       q("#coins").innerHTML = `${ic("coin")} ${store.coinsText}`;
       q("#scount").textContent = countText();
@@ -265,11 +282,24 @@ function shop() {
       world.dress(sel && !store.owns(sel.id) ? { ...worn, [sel.slot]: sel.id } : worn); // probárselo antes de comprar
     };
     paint();
+    // si cambia el tamaño del área de tarjetas (girar el aparato, redimensionar), se reparten otra vez
+    let lastW = 0, lastH = 0;
+    const ro = new ResizeObserver(() => { const c = q("#scards"); if (c.clientWidth !== lastW || c.clientHeight !== lastH) { lastW = c.clientWidth; lastH = c.clientHeight; paint(); } });
+    ro.observe(q("#scards"));
+    cleanup = () => ro.disconnect();
+    // deslizar el dedo sobre las tarjetas también cambia de página
+    let x0 = 0;
+    q("#scards").addEventListener("pointerdown", (e) => { x0 = e.clientX; });
+    q("#scards").addEventListener("pointerup", (e) => {
+      const dx = e.clientX - x0;
+      if (Math.abs(dx) > 50) { shopPage = Math.max(0, shopPage + (dx < 0 ? 1 : -1)); paint(); swap(q("#scards")); }
+    });
     on(r, "#back", () => { preview = null; world.mode("menu"); levelMap(); });
     q(".shopbox").addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
-      const tab = t.closest<HTMLElement>("[data-s]"), card = t.closest<HTMLElement>(".card"), act = t.closest<HTMLElement>("#act");
-      if (tab) { sfx.click(); shopTab = tab.dataset.s as Slot; preview = null; paint(); swap(q("#scards")); }
+      const tab = t.closest<HTMLElement>("[data-s]"), card = t.closest<HTMLElement>(".card"), act = t.closest<HTMLElement>("#act"), pg = t.closest<HTMLElement>("[data-p]");
+      if (pg && !(pg as HTMLButtonElement).disabled) { sfx.click(); shopPage = Math.max(0, shopPage + Number(pg.dataset.p)); paint(); swap(q("#scards")); }
+      else if (tab) { sfx.click(); shopTab = tab.dataset.s as Slot; shopPage = 0; preview = null; paint(); swap(q("#scards")); }
       else if (card) { sfx.click(); preview = card.dataset.id!; paint({ cards: false }); }
       else if (act && !(act as HTMLButtonElement).disabled) {
         const { worn, sel } = current();
