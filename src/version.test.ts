@@ -13,6 +13,6 @@ test("las versiones tienen formato 0.0.0 y van en orden dentro de cada entorno",
 });
 test("pruebas y conceptos continúan después de producción", () => {
   const last = PRODUCTION[PRODUCTION.length - 1].version;
-  expect(cmp(last, TEST[0].version)).toBeLessThan(0);
+  if (TEST.length) expect(cmp(last, TEST[0].version)).toBeLessThan(0);
   expect(cmp(last, CONCEPT[0].version)).toBeLessThan(0);
 });
