@@ -140,7 +140,8 @@ textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
 @media (max-width: 700px) { .kbd { font-size: .62rem; } }
 .play .kbd { background: rgb(5 4 41 / .82); padding: .6rem .8rem; border-radius: 8px; width: fit-content; }
 main.shop { gap: .6rem; }
-.shopbox { margin-top: auto; display: grid; gap: .8rem; max-height: 42vh; overflow-y: auto; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
+.shopdock { margin-top: auto; display: flex; flex-direction: column; gap: .5rem; }
+.shopbox { display: flex; flex-direction: column; gap: .5rem; height: min(34vh, 340px); overflow: hidden; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
 .slot { display: grid; gap: .4rem; } .slot h3 { font-size: .95rem; color: var(--suave); }
 .item { display: grid; grid-template-columns: 2rem 1fr auto auto; gap: .7rem; align-items: center; padding: .35rem .5rem; border-radius: 8px; border: 1px solid transparent; }
 .item.wearing { border-color: var(--neon); background: rgb(23 255 147 / .08); }
@@ -213,7 +214,6 @@ html[data-kind="phone"] .bar h3 { font-size: 1rem; }
 .lvl.open:hover { box-shadow: 0 0 22px rgb(23 255 147 / .45); }
 .mode { transition: transform .12s, border-color .12s; } .mode:hover { transform: translateY(-2px); }
 .mode .ic { width: 1.35em; height: 1.35em; }
-html[data-kind="phone"] .cards { grid-template-columns: repeat(3, 1fr); }
 html[data-kind="phone"] .card { padding: .5rem .25rem; font-size: .8rem; }
 html[data-kind="phone"] .top { padding: .45rem .6rem; gap: .5rem; }
 /* Guía de dedos con foto */
@@ -240,7 +240,7 @@ html[data-kind="phone"] .top { padding: .45rem .6rem; gap: .5rem; }
 .swatch.cycle { background: conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red); animation: spin 4s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .btn.buy, .swatch.cycle { animation: none; } }
-html[data-kind="phone"] .detail { grid-template-columns: auto 1fr; } html[data-kind="phone"] .detail .btn { grid-column: 1 / -1; }
+html[data-kind="phone"] .detail .btn { padding: .4rem .6rem; font-size: .85rem; white-space: nowrap; }
 
 /* Guía con teclado de colores */
 .guidekbd { overflow-x: auto; padding: .2rem 0; }
@@ -304,3 +304,64 @@ html[data-kind="phone"] .detail { grid-template-columns: auto 1fr; } html[data-k
 /* Versión del juego (solo en el inicio) */
 .ver { position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); font: 400 .8rem var(--mono); color: var(--suave); opacity: .75; pointer-events: none; text-shadow: 0 1px 4px #000; }
 .ver[data-channel="test"], .ver[data-channel="dev"] { color: #ffd54a; } .ver[data-channel="concept"] { color: #ff8ad6; }
+
+/* Interfaz fluida: respuesta inmediata al tocar, transiciones suaves y sin repintar de más */
+button, .mode, .card, .lvl, .tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.btn, .ghost, .mode, .card, .lvl, .tab, .back { transition: transform .12s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease, color .18s ease; }
+.btn:active, .ghost:active, .mode:active, .card:active, .lvl.open:active, .tab:active, .back:active { transform: scale(.96); }
+.screen.still { animation: none; }
+.swap > * { animation: swapin .22s ease-out both; }
+.swap > *:nth-child(2) { animation-delay: 20ms; } .swap > *:nth-child(3) { animation-delay: 40ms; } .swap > *:nth-child(4) { animation-delay: 60ms; } .swap > *:nth-child(n+5) { animation-delay: 80ms; }
+@keyframes swapin { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+.detail { animation: swapin .2s ease-out; }
+.shopbox, .grid, .cards, .modes { contain: layout style; }
+@media (prefers-reduced-motion: reduce) { .swap > *, .detail { animation: none; } .btn:active, .mode:active, .card:active, .lvl.open:active, .tab:active { transform: none; } }
+
+/* Reparto de botones: tienda y pestañas en pantallas pequeñas */
+.shopbox .tabs { flex-wrap: nowrap; gap: .3rem; }
+.shopbox .tab { flex: 1 1 0; min-width: 0; padding: .45rem .2rem; font-size: .8rem; text-align: center; }
+html[data-kind="phone"] .shopbox { height: 34vh; padding: .5rem .6rem; gap: .4rem; }
+html[data-kind="phone"] .detail { padding: .5rem .6rem; gap: .5rem; }
+html[data-kind="phone"] .detail .art .ic { width: 2.4rem; height: 2.4rem; }
+html[data-kind="phone"] .detail small { font-size: .8rem; }
+html[data-kind="tablet"] .shopbox { height: min(34vh, 420px); }
+
+/* Tienda sin deslizar: ficha fija arriba, tarjetas en páginas y selector de página */
+.shopdock .detail { flex: none; height: 5.2rem; margin: 0; overflow: hidden; align-items: center; } .detail.empty { display: grid; place-items: center; }
+.shopbox .tabs { flex: none; }
+.shopbox .cards { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: .5rem; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem .2rem 0; scrollbar-width: auto; scrollbar-color: var(--neon) rgb(10 10 53); }
+/* Barra de deslizar propia: ancha, con los colores del juego */
+.shopbox .cards::-webkit-scrollbar { width: 14px; }
+.shopbox .cards::-webkit-scrollbar-track { background: rgb(10 10 53); border: 1px solid var(--linea); border-radius: 10px; }
+.shopbox .cards::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--neon), #0fb86b); border: 3px solid rgb(10 10 53); border-radius: 10px; box-shadow: 0 0 8px rgb(23 255 147 / .5); }
+.shopbox .cards::-webkit-scrollbar-thumb:hover { background: var(--hielo); }
+.shopbox .card { min-height: 78px; padding: .35rem .25rem; gap: .1rem; align-content: center; font-size: .82rem; overflow: hidden; }
+.shopbox .card .art { height: 1.7rem; } .shopbox .card .art .ic { width: 1.7rem; height: 1.7rem; } .shopbox .card .swatch { width: 1.5rem; height: 1.5rem; border-width: 2px; }
+.shopbox .card b { line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+@media (min-width: 700px) { .shopbox .card { font-size: .9rem; } .shopbox .card .art { height: 2.1rem; } .shopbox .card .art .ic { width: 2.1rem; height: 2.1rem; } }
+@media (orientation: landscape) and (max-height: 520px) {
+  html[data-kind="phone"] .shopdock { height: calc(var(--vh, 100vh) - 80px); width: min(58%, 520px); margin-left: auto; }
+  html[data-kind="phone"] .shopbox { flex: 1; height: auto; min-height: 0; }
+  html[data-kind="phone"] .shopdock .detail { height: 4.2rem; }
+}
+
+/* Mapa de niveles que cabe en la pantalla del celular */
+html[data-kind="phone"] .modes { grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+html[data-kind="phone"] .mode { padding: .4rem .35rem; text-align: center; justify-items: center; }
+html[data-kind="phone"] .mode b { font-size: .74rem; line-height: 1.15; }
+html[data-kind="phone"] .mode small { display: none; } html[data-kind="phone"] .mode.gift small { display: block; font-size: .7rem; }
+html[data-kind="phone"] .mode .ic { width: 1.5em; height: 1.5em; display: block; margin: 0 auto .1rem; }
+html[data-kind="phone"] .grid { grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+html[data-kind="phone"] .lvl { gap: .1rem; font-size: .68rem; padding: .1rem; } html[data-kind="phone"] .lvl i .ic { width: 1.5rem; height: 1.5rem; }
+html[data-kind="phone"] .lvl small { display: none; } html[data-kind="phone"] .lvl .st { font-size: .6rem; }
+html[data-kind="phone"] .tabs .tab { padding: .35rem .5rem; font-size: .8rem; } html[data-kind="phone"] .tabs .tab small { display: none; }
+
+/* Guía que cabe en una pantalla */
+.hands img { max-height: 30vh; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
+html[data-kind="phone"] .hands figcaption { display: none; }
+html[data-kind="phone"] .tips { display: none; }
+html[data-kind="phone"] .hands img { max-height: 26vh; }
+html[data-kind="phone"] .deviceTip { font-size: .85rem; line-height: 1.35; }
+
+html[data-kind="phone"] .shopbox .card { font-size: .72rem; }
+.shopbox .card.sel, .shopbox .card:hover { transform: none; } .shopbox .card.sel { outline-offset: -3px; }
