@@ -60,7 +60,9 @@ export function createScene(canvas: HTMLCanvasElement) {
   let wave = 0; // 0 = sin onda; sube a 1 mientras se expande
 
   // Estado
-  type Mode = "menu" | "play" | "shop";
+  type Mode = "menu" | "play" | "shop" | "hub";
+  let hubSpin = false; // en la tienda, Vectorcito gira para verse por todos lados
+  let hubInset = 0.38;  // fracción de la pantalla que ocupa el panel de contenido
   let mode: Mode = "menu";
   let kbdOn = false; // ¿hay teclado de colores en pantalla? Cambia dónde se ve a Vectorcito.
   let progress = 0, speed = 3, boost = 0, shake = 0, jump = 0, celebrate = 0, hop = 0, sad = 0, flash = 0, travelled = 0;
@@ -126,7 +128,18 @@ export function createScene(canvas: HTMLCanvasElement) {
 
     fx.update(dt, time, speed, hero.group.position.x, hero.group.position.y, trailOn && !reduce);
 
-    if (mode === "shop") {
+    if (mode === "hub") {
+      // Vectorcito se ve en el escenario libre: a la izquierda del panel en pantallas anchas; arriba del panel en verticales.
+      const wide = camera.aspect > 1.05;
+      const a = hubSpin ? time * 0.45 : Math.sin(time * 0.25) * 0.35;
+      const d = wide ? 8.4 : 9.6;
+      camera.position.set(Math.sin(a) * d, wide ? 2.2 : 2.6, Math.cos(a) * d);
+      const right = new THREE.Vector3(Math.cos(a), 0, -Math.sin(a));
+      const target = new THREE.Vector3(0, 1.15, 0);
+      if (wide) target.addScaledVector(right, hubInset * 6.2 + 0.25); // mira a la derecha de Vectorcito: él se desplaza a la izquierda
+      else target.y -= 1.35 + (0.62 - Math.min(0.62, hubInset)) * 1.2; // mira por debajo: él sube
+      camera.lookAt(target);
+    } else if (mode === "shop") {
       const a = time * 0.45; // da la vuelta completa para ver todos los accesorios, por delante y por detrás
       camera.position.set(Math.sin(a) * 8.5, 1.6, Math.cos(a) * 8.5);
       camera.lookAt(0, -0.1, 0);
@@ -152,6 +165,8 @@ export function createScene(canvas: HTMLCanvasElement) {
   return {
     theme(d: Diff | "menu") { world.setTheme(d as Theme); },
     mode(m: Mode) { mode = m; progress = 0; },
+    /** Menú principal: gira o no, y cuánto de la pantalla (0 a 1) ocupa el panel. */
+    hub(spin: boolean, inset: number) { hubSpin = spin; hubInset = inset; },
     /** Muestra lo que lleva puesto el jugador: accesorios, color y estela. */
     dress(worn: Record<string, string | undefined>) {
       const ids = Object.values(worn).filter((x): x is string => !!x);

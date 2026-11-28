@@ -1,13 +1,14 @@
 import { DIFFS, LEVELS, factoryLevels, type CustomLevel, type Diff, type Level } from "./content";
+import { openHub, setWorldTab } from "./hub";
 import { Round, starsFor, summarize, type Summary } from "./engine";
 import { dailyLevels, dateKey, endlessTexts } from "./modes";
 import { device, deviceLabel, physicalKeys } from "./device";
 import { ic } from "./icons";
-import { ITEMS, SLOTS, SLOT_NAMES, RARITY_NAMES, rarityOfItem, comboCoins, comboTier, coinsFor, type Slot } from "./cosmetics";
+import { comboCoins, comboTier, coinsFor } from "./cosmetics";
 import { compareScore, decode, encode, verdict, type Challenge } from "./challenge";
 import { highlightKey, keyboardHtml } from "./keys";
 import { adminLogin, adminLogout, custom, isAdmin, saveLevels } from "./remote";
-import { disablePush, enablePush, pushState, syncPush, type PushState } from "./push";
+import { syncPush } from "./push";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
 import { channel, versionText } from "./version";
@@ -19,37 +20,38 @@ type World = ReturnType<typeof createScene>;
 const app = document.getElementById("app")!;
 let world: World;
 let cleanup: (() => void) | null = null;
-let tab: Diff = "easy";
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const tr = (k: Key) => t(store.lang, k);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export const tr = (k: Key) => t(store.lang, k);
 let pending: Challenge | null = null; // reto recibido por enlace
 const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k]));
 let runCombo = { coins: 0, max: 0, words: 0 }; // lo que dejó el combo en la última partida
 const DAILY_ID = 900, TIME_ID = 901; // partidas que no son un nivel
-const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
+export const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
+const levelMap = () => openHub(); // el menú principal vive en src/hub.ts
+export const getWorld = () => world;
+export const setMood = (m: Parameters<typeof music.mood>[0]) => music.mood(m);
+export const onLeave = (fn: () => void) => { cleanup = fn; };
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
 
 /** Verdadero cuando la pantalla se vuelve a dibujar por un cambio en ella misma (idioma, pestaña...): sin animación de entrada y sin perder el desplazamiento ni el foco. */
 let soft = false;
 const again = <T,>(fn: () => T): T => { soft = true; return fn(); };
 
-function show(html: string, onMount?: (root: HTMLElement) => void) {
+export function show(html: string, onMount?: (root: HTMLElement) => void, bare = false) {
   const keep = soft, top = app.scrollTop, focused = keep ? (document.activeElement as HTMLElement | null) : null;
   const focusSel = focused?.id ? `#${focused.id}` : focused?.dataset?.b ? `[data-b="${focused.dataset.b}"]` : focused?.dataset?.s ? `[data-s="${focused.dataset.s}"]` : focused?.dataset?.act ? `[data-act="${focused.dataset.act}"]` : "";
   soft = false;
   if (!keep) world.dress(store.worn);
   cleanup?.();
   cleanup = null;
-  app.innerHTML = `<div class="screen${keep ? " still" : ""}">${html}</div>`;
+  app.innerHTML = `<div class="screen${keep ? " still" : ""}${bare ? " bare" : ""}">${html}</div>`;
   const root = app.firstElementChild as HTMLElement;
   if (keep) { app.scrollTop = top; if (focusSel) root.querySelector<HTMLElement>(focusSel)?.focus({ preventScroll: true }); }
   else root.querySelector<HTMLElement>("[data-focus]")?.focus();
   onMount?.(root);
 }
 
-/** Entrada suave de los elementos de una lista que acaba de cambiar (pestañas). */
-function swap(el: HTMLElement) { el.classList.remove("swap"); void el.offsetWidth; el.classList.add("swap"); }
 
 /** Actualiza los botones de la barra de arriba sin volver a dibujar la pantalla. */
 function syncToolbar(root: HTMLElement) {
@@ -87,7 +89,7 @@ function errorFx(lostCombo: number) {
 
 /** Aviso breve abajo de la pantalla. Vive fuera de #app para sobrevivir al cambio de pantalla. */
 let toastTimer = 0;
-function toast(html: string) {
+export function toast(html: string) {
   let el = document.getElementById("toast");
   if (!el) { el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
   el.innerHTML = html;
@@ -120,6 +122,10 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
 let installEvt: (Event & { prompt: () => Promise<void> }) | null = null;
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e as typeof installEvt; renderInstall(); });
 addEventListener("appinstalled", () => { installEvt = null; renderInstall(); });
+
+export const canInstall = () => !device.standalone && (!!installEvt || (device.os === "ios" && device.touch));
+/** Abre el aviso de instalación si el navegador lo permite; false = hay que hacerlo a mano (iPhone, iPad). */
+export async function install() { if (!installEvt) return false; await installEvt.prompt(); installEvt = null; return true; }
 
 function renderInstall() {
   const slot = document.getElementById("installslot");
@@ -164,7 +170,8 @@ export function home() {
   });
 }
 
-function profile() {
+export function profile() {
+  world.theme("menu"); world.mode("menu");
   const names = store.names;
   show(`${toolbar()}
     <main class="center">
@@ -191,7 +198,8 @@ function profile() {
   });
 }
 
-function guide(next: () => void) {
+export function guide(next: () => void) {
+  world.theme("menu"); world.mode("menu");
   show(`${toolbar()}
     <main class="wide">
       ${topbar(`${ic("hands")} ${tr("guide")}`, "", false)}
@@ -208,83 +216,7 @@ function guide(next: () => void) {
   });
 }
 
-let shopTab: Slot = "head";
-const SWATCH_BASE = 150; // el verde original, en grados de color
 
-let preview: string | null = null; // lo que se está probando en la tienda (se ve en Vectorcito antes de comprar)
-function shop() {
-  world.theme("menu");
-  world.mode("shop");
-  const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "dark" ? `<i class="swatch dark"></i>` : i.finish === "dev" ? `<i class="swatch dev"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
-  const current = () => {
-    const worn = store.worn;
-    return { worn, sel: ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null };
-  };
-  const detailHtml = () => {
-    const { worn, sel } = current();
-    if (!sel) return `<div class="detail empty"><p class="hint">${tr("nothingWorn")}</p></div>`;
-    const has = store.owns(sel.id), isOn = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
-    const btn = has ? `<button class="btn ${isOn ? "ghost-b" : ""}" id="act">${isOn ? tr("unequip") : tr("equip")}</button>`
-      : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
-      : `<button class="btn ghost-b" id="act" disabled>${ic("coin")} ${sel.price} · −${miss}</button>`;
-    return `<div class="detail ${rarityOfItem(sel)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
-      <div><em class="tier">${RARITY_NAMES[rarityOfItem(sel)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
-  };
-  const cardsHtml = () => {
-    const { worn, sel } = current();
-    return ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price).map((i) => {
-      const has = store.owns(i.id), isOn = worn[i.slot] === i.id, isSel = sel?.id === i.id;
-      return `<button class="card ${rarityOfItem(i)} ${isOn ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
-        <span class="art">${i.hue !== undefined ? swatch(i) : ic(i.icon)}</span><b>${i.name[store.lang]}</b>
-        <small>${has ? (isOn ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
-    }).join("");
-  };
-
-  show(`${toolbar()}
-    <main class="wide shop">
-      ${topbar(`${ic("shop")} ${tr("shop")}`, `<span id="coins">${ic("coin")} ${store.coinsText}</span>`)}
-      <div class="shopdock">
-        <div id="sdetail"></div>
-        <div class="shopbox">
-        <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
-        <div class="cards" id="scards"></div>
-        </div>
-      </div>
-    </main>`, (r) => {
-    wireToolbar(r, shop);
-    const q = <T extends HTMLElement>(sel: string) => r.querySelector<T>(sel)!;
-    /** Solo se repinta lo que cambió: la ficha, las tarjetas y las monedas (no toda la pantalla). */
-    const paint = (what: { cards?: boolean } = { cards: true }) => {
-      const { worn, sel } = current();
-      q("#sdetail").innerHTML = detailHtml();
-      if (what.cards) q("#scards").innerHTML = cardsHtml();
-      else r.querySelectorAll<HTMLElement>(".card").forEach((c) => { const on = c.dataset.id === sel?.id; c.classList.toggle("sel", on); c.setAttribute("aria-pressed", String(on)); });
-      q("#coins").innerHTML = `${ic("coin")} ${store.coinsText}`;
-      r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.s === shopTab)));
-      world.dress(sel && !store.owns(sel.id) ? { ...worn, [sel.slot]: sel.id } : worn); // probárselo antes de comprarlo
-    };
-    paint();
-    on(r, "#back", () => { preview = null; world.mode("menu"); levelMap(); });
-    q(".shopdock").addEventListener("click", (e) => {
-      const t = e.target as HTMLElement;
-      const tab = t.closest<HTMLElement>("[data-s]"), card = t.closest<HTMLElement>(".card"), act = t.closest<HTMLElement>("#act");
-      if (tab) { sfx.click(); shopTab = tab.dataset.s as Slot; preview = null; paint(); swap(q("#scards")); q("#scards").scrollTop = 0; }
-      else if (card) { sfx.click(); preview = card.dataset.id!; paint({ cards: false }); }
-      else if (act && !(act as HTMLButtonElement).disabled) {
-        const { worn, sel } = current();
-        if (!sel) return;
-        if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
-        else if (store.buy(sel.id)) {
-          const rar = rarityOfItem(sel);
-          if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
-          store.wear(sel.slot, sel.id);
-          toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
-        } else { sfx.error(); toast(tr("notEnough")); return; }
-        paint();
-      }
-    });
-  });
-}
 
 function startChallenge() {
   const c = pending;
@@ -294,126 +226,9 @@ function startChallenge() {
   play(LEVELS.find((l) => l.id === c.id)!, c);
 }
 
-function levelMap() {
-  const gridHtml = () => LEVELS.filter((l) => l.diff === tab).map((l) => {
-    const open = store.unlocked(l.id), b = store.best(l.id);
-    return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
-      <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : "&nbsp;"}</span><small>${b ? `${b.wpm} ${tr("wpmShort")}` : "&nbsp;"}</small></button>`;
-  }).join("");
-  music.mood("menu"); // fuera de un nivel suena la música de inicio
-  world.theme("menu"); // todos los menús usan el ambiente del inicio; cada nivel pone el suyo al empezar
-  world.mode("menu");
-  show(`${toolbar()}
-    <main class="wide">
-      ${topbar(tr("pick"), `${esc(store.current)} · ${ic("coin")} ${store.coinsText}`)}
-      <div class="modes">
-        ${store.giftReady ? `<button class="mode gift" id="gift"><b>${ic("gift")} ${tr("giftDay")}</b><small>+${store.giftAmount} ${ic("coin")}</small></button>` : ""}
-        <button class="mode" id="shop"><b>${ic("shop")} ${tr("shop")}</b><small>${ic("coin")} ${store.coinsText}</small></button>
-        <button class="mode ${store.daily.days[dateKey()] ? "" : "attn"}" id="m-daily"><b>${ic("daily")} ${tr("daily")}</b><small>${store.daily.days[dateKey()] ? `✓ ${tr("doneToday")}` : `${ic("fire")} ${store.dailyStreak} ${tr("dayStreak")}`}</small></button>
-        <button class="mode" id="m-time"><b>${ic("time")} ${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
-        <button class="mode" id="rank"><b>${ic("rank")} ${tr("ranking")}</b><small>${store.online.on ? `${tr("scopeRoom")}: ${store.online.room || "–"}` : "&nbsp;"}</small></button>
-        <button class="mode" id="prog"><b>${ic("progress")} ${tr("progress")}</b></button>
-        <button class="mode" id="hands"><b>${ic("hands")} ${tr("guide")}</b></button>
-        <button class="mode" id="box"><b>${ic("box")} ${tr("box")}</b></button>
-      </div>
-      <div class="tabs" role="tablist">${DIFFS.map((d) => {
-        const all = LEVELS.filter((l) => l.diff === d), got = all.filter((l) => store.best(l.id)).length;
-        return `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)} <small>${got}/${all.length}</small></button>`;
-      }).join("")}</div>
-      <div class="grid">${gridHtml()}</div>
-    </main>`, (r) => {
-    wireToolbar(r, levelMap);
-    on(r, "#back", home);
-    on(r, "#prog", progress);
-    on(r, "#rank", () => ranking("daily", "world"));
-    on(r, "#box", () => suggest(levelMap));
-    on(r, "#hands", () => guide(levelMap));
-    on(r, "#shop", shop);
-    on(r, "#gift", () => { const n = store.claimGift(); sfx.fanfare(); world.win(); again(levelMap); toast(`${ic("gift")} ${tr("giftGot")} <b>+${n}</b> ${ic("coin")}`); });
-    on(r, "#m-daily", () => modeInfo("daily"));
-    on(r, "#m-time", () => modeInfo("time"));
-    // Pestañas de dificultad: solo cambia la lista de niveles, no toda la pantalla.
-    r.querySelector(".tabs")!.addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>(".tab");
-      if (!b || b.dataset.d === tab) return;
-      sfx.click(); tab = b.dataset.d as Diff;
-      r.querySelectorAll<HTMLElement>(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === b)));
-      const grid = r.querySelector<HTMLElement>(".grid")!;
-      grid.innerHTML = gridHtml(); swap(grid);
-    });
-    r.querySelector(".grid")!.addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>(".lvl.open");
-      if (b) { sfx.click(); info(LEVELS.find((l) => l.id === +b.dataset.id!)!); }
-    });
-  });
-}
 
-function chart(vals: number[], max: number, title: string) {
-  const W = 600, H = 170, px = 34, py = 22;
-  const x = (i: number) => px + (vals.length < 2 ? (W - 2 * px) / 2 : (i * (W - 2 * px)) / (vals.length - 1));
-  const y = (v: number) => H - py - (v / max) * (H - 2 * py);
-  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-  const grid = [0, 0.5, 1].map((k) => `<line x1="${px}" x2="${W - px}" y1="${y(max * k)}" y2="${y(max * k)}" class="gl"/><text x="${px - 6}" y="${y(max * k) + 4}" class="gt" text-anchor="end">${Math.round(max * k)}</text>`).join("");
-  const last = vals.length - 1;
-  return `<figure class="chart"><figcaption>${title}</figcaption>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}: ${vals.join(", ")}">${grid}
-      ${vals.length > 1 ? `<polyline points="${pts.join(" ")}" class="ln"/>` : ""}
-      ${vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === last ? 5 : 3}" class="pt"/>`).join("")}
-      <text x="${x(last)}" y="${y(vals[last]) - 10}" class="gt hi" text-anchor="middle">${vals[last]}</text>
-    </svg></figure>`;
-}
 
-function progress() {
-  const runs = store.runs;
-  const recent = runs.slice(-20);
-  const avg = (a: number[]) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
-  const totalStars = LEVELS.reduce((n, l) => n + (store.best(l.id)?.stars ?? 0), 0);
-  const miss: Record<string, number> = {};
-  runs.slice(-50).forEach((r) => Object.entries(r.miss).forEach(([k, v]) => { miss[k] = (miss[k] ?? 0) + v; }));
-  const hardest = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const fmt = new Intl.DateTimeFormat(store.lang, { day: "numeric", month: "short" });
-  const rows = runs.slice(-8).reverse().map((r) => {
-    const lv = LEVELS.find((x) => x.id === r.id);
-    const label = lv ? `${lvlName(lv)} · ${tr(lv.diff)}` : r.id === DAILY_ID ? `${ic("daily")} ${tr("daily")}` : `${ic("time")} ${tr("timeAttack")}`;
-    return `<li><span>${fmt.format(r.ts)}</span><span>${label}</span><b>${r.wpm}</b><span>${r.acc}%</span><span class="st">${stars(r.stars)}</span></li>`;
-  }).join("");
-  show(`${toolbar()}
-    <main class="wide">
-      ${topbar(`${ic("progress")} ${tr("progress")}`, esc(store.current))}
-      ${runs.length === 0 ? `<p class="tag" style="margin:2rem auto">${tr("noRuns")}</p>` : `
-      <dl class="stats wide-stats">
-        <div><dt>${tr("runs")}</dt><dd>${runs.length}</dd></div>
-        <div><dt>${tr("avgWpm")}</dt><dd>${avg(recent.map((r) => r.wpm))}</dd></div>
-        <div><dt>${tr("bestWpm")}</dt><dd>${Math.max(...runs.map((r) => r.wpm))}</dd></div>
-        <div><dt>${tr("avgAcc")}</dt><dd>${avg(recent.map((r) => r.acc))}%</dd></div>
-        <div><dt>${tr("totalStars")}</dt><dd>${totalStars}/${LEVELS.length * 3}</dd></div>
-      </dl>
-      <div class="charts">
-        ${chart(recent.map((r) => r.wpm), Math.max(10, Math.ceil(Math.max(...recent.map((r) => r.wpm)) / 20) * 20), `${tr("wpmChart")} · ${tr("lastN")} ${recent.length}`)}
-        ${chart(recent.map((r) => r.acc), 100, `${tr("accChart")} · ${tr("lastN")} ${recent.length}`)}
-      </div>
-      ${hardest.length ? `<section class="panel"><h3>${tr("hardKeys")}</h3><div class="chips">${hardest.map(([k, n]) => `<span class="chip key">${esc(k === " " ? "␣" : k)} <small>×${n}</small></span>`).join("")}</div></section>` : ""}
-      <section class="panel"><h3>${tr("recent")}</h3><ul class="runs">${rows}</ul></section>`}
-    </main>`, (r) => {
-    wireToolbar(r, progress);
-    on(r, "#back", levelMap);
-  });
-}
 
-function info(l: Level) {
-  const b = store.best(l.id);
-  show(`${toolbar()}
-    <main class="center">
-      <h2>${lvlName(l)} · ${tr(l.diff)}</h2>
-      <blockquote class="quote">${esc(l.text[store.lang])}</blockquote>
-      <p class="hint">${tr("best")}: ${b ? `${stars(b.stars)} · ${b.wpm} ${tr("wpm")}` : tr("none")}</p>
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
-    </main>`, (r) => {
-    wireToolbar(r, () => info(l));
-    on(r, "#back", levelMap);
-    on(r, "#go", () => play(l));
-  });
-}
 
 /** Una carrera: una o varias frases seguidas, con cuenta regresiva y, si se pide, límite de tiempo. */
 interface RunCfg {
@@ -591,7 +406,7 @@ function run(cfg: RunCfg) {
 
 const once = (text: string) => { let used = false; return () => (used ? undefined : ((used = true), text)); };
 
-function play(l: Level, vs?: Challenge) {
+export function play(l: Level, vs?: Challenge) {
   run({
     diff: l.diff, title: `${lvlName(l)} · ${tr(l.diff)}`, next: once(l.text[store.lang]),
     finish: ([round]) => results({ kind: "level", level: l, title: lvlName(l), sum: summarize([round], round.seconds), secs: round.seconds, retry: () => play(l, vs), vs }),
@@ -599,7 +414,7 @@ function play(l: Level, vs?: Challenge) {
   });
 }
 
-function playDaily() {
+export function playDaily() {
   const texts = dailyLevels(dateKey()).map((l) => l.text[store.lang]);
   let i = 0;
   run({
@@ -613,7 +428,7 @@ function playDaily() {
 }
 
 const TIME_LIMIT = 60;
-function playTime(vs?: Challenge) {
+export function playTime(vs?: Challenge) {
   run({
     diff: "hard", title: tr("timeAttack"), limit: TIME_LIMIT, next: endlessTexts(store.lang),
     finish: (rounds) => results({ kind: "time", title: tr("timeAttack"), sum: summarize(rounds, TIME_LIMIT), secs: TIME_LIMIT, retry: () => playTime(vs), vs }),
@@ -621,60 +436,11 @@ function playTime(vs?: Challenge) {
   });
 }
 
-const msToMidnight = () => { const n = new Date(); return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1) - n.getTime(); };
-const clock = (ms: number) => { const m = Math.floor(ms / 60000); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
 
-function dailyHero() {
-  const done = store.daily.days[dateKey()], streak = store.dailyStreak;
-  const week = Array.from({ length: 7 }, (_, i) => dateKey(new Date(Date.now() - (6 - i) * 864e5)));
-  const dow = (k: string) => new Date(`${k}T12:00:00Z`).toLocaleDateString(store.lang, { weekday: "narrow", timeZone: "UTC" });
-  const danger = !done && streak > 0;
-  return `<div class="dailyhero ${done ? "isdone" : danger ? "danger" : ""}">
-    <div class="flame" aria-hidden="true">${ic("fire")}</div>
-    <div class="bignum"><span id="streaknum" data-to="${streak}">0</span><small>${tr("dayStreak")}</small></div>
-    <div class="week" aria-label="${tr("weekTitle")}">${week.map((k, i) => `<span class="${store.daily.days[k] ? "on" : ""} ${k === dateKey() ? "today" : ""}" style="--i:${i}"><i>${store.daily.days[k] ? "✓" : ""}</i><small>${dow(k)}</small></span>`).join("")}</div>
-    <p class="${done ? "good" : danger ? "warn" : "hint"}">${done ? `${tr("doneBig")} (${done.wpm} ${tr("wpmShort")})` : danger ? tr("danger") : tr("daily1")}</p>
-    <p class="hint">${tr("timeLeft")} <b id="left">${clock(msToMidnight())}</b></p>
-  </div>`;
-}
 
-function modeInfo(kind: "daily" | "time") {
-  show(`${toolbar()}
-    <main class="center">
-      <h2>${kind === "daily" ? `${ic("daily")} ${tr("daily")}` : `${ic("time")} ${tr("timeAttack")}`}</h2>
-      <p class="tag">${tr(kind === "daily" ? "dailyDesc" : "timeDesc")}</p>
-      ${kind === "daily" ? dailyHero() : `<p class="hint">${tr("bestScore")}: ${store.bestTime || "–"}</p>`}
-      ${kind === "daily" ? `<div id="remindbox" class="remind"></div>` : ""}
-      <div class="row"><button class="btn ghost-b" id="back">${tr("back")}</button><button class="btn" id="go" data-focus>${tr("play")}</button></div>
-    </main>`, (r) => {
-    wireToolbar(r, () => modeInfo(kind));
-    on(r, "#back", levelMap);
-    on(r, "#go", kind === "daily" ? playDaily : () => playTime());
-    if (kind === "daily") {
-      const num = r.querySelector<HTMLElement>("#streaknum");
-      if (num) countUp(num, Number(num.dataset.to));
-      const left = r.querySelector<HTMLElement>("#left");
-      const t = window.setInterval(() => { if (left?.isConnected) left.textContent = clock(msToMidnight()); else clearInterval(t); }, 30000);
-      void renderRemind(r.querySelector<HTMLElement>("#remindbox")!);
-    }
-  });
-}
+
 
 const pushStatus = () => ({ lang: store.lang, last: store.daily.last, streak: store.dailyStreak });
-async function renderRemind(box: HTMLElement) {
-  const st: PushState = await pushState();
-  if (!box.isConnected) return;
-  const msg: Partial<Record<PushState, string>> = { unsupported: tr("remindUnsupported"), needsInstall: tr("remindInstall"), blocked: tr("remindBlocked") };
-  if (msg[st]) { box.innerHTML = `<p class="hint">🔔 ${msg[st]}</p>`; return; }
-  box.innerHTML = st === "on"
-    ? `<button class="btn ghost-b" id="rm">🔔 ${tr("remindOn")}</button>`
-    : `<button class="btn ghost-b" id="rm">🔔 ${tr("remind")}</button><p class="hint">${tr("remindHelp")}</p>`;
-  on(box, "#rm", async () => {
-    sfx.click();
-    if (st === "on") await disablePush(); else await enablePush(pushStatus());
-    void renderRemind(box);
-  });
-}
 
 function countUp(el: HTMLElement, to: number, suffix = "", ms = 900) {
   const t0 = performance.now();
@@ -777,7 +543,7 @@ function results(o: Outcome) {
         if (res && line.isConnected) line.innerHTML = `${ic("rank")} ${[text(tr("world"), res.global), text(`${tr("room")} ${store.online.room}`, res.room)].filter(Boolean).join(" · ")}`;
       });
     }
-    on(r, "#map", () => { if (l) tab = l.diff; world.mode("menu"); levelMap(); });
+    on(r, "#map", () => { if (l) setWorldTab(l.diff); openHub("play"); });
     on(r, "#retry", o.retry);
     on(r, "#share", async () => {
       const note = r.querySelector<HTMLElement>("#sharenote")!;
@@ -793,11 +559,12 @@ function results(o: Outcome) {
         note.querySelector("input")!.addEventListener("focus", (ev) => (ev.target as HTMLInputElement).select());
       }
     });
-    on(r, "#next", () => { tab = nextLevel!.diff; info(nextLevel!); });
+    on(r, "#next", () => { sfx.click(); play(nextLevel!); });
   });
 }
 
-function ranking(board: "daily" | "time", scope: "world" | "room") {
+export function ranking(board: "daily" | "time", scope: "world" | "room") {
+  world.theme("menu"); world.mode("menu");
   const o = store.online;
   if (scope === "room" && !o.room) scope = "world";
   show(`${toolbar()}
@@ -853,7 +620,8 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
 }
 
 /** Buzón: el mensaje viaja a /api/suggest y queda guardado en un almacén privado. */
-function suggest(back: () => void) {
+export function suggest(back: () => void) {
+  world.theme("menu"); world.mode("menu");
   let cat: "idea" | "bug" | "other" = "idea";
   const kinds = [["idea", "catIdea"], ["bug", "catBug"], ["other", "catOther"]] as const;
   show(`${toolbar()}
@@ -935,7 +703,7 @@ function adminLoginScreen() {
   });
 }
 
-function adminPanel() {
+export function adminPanel() {
   world.theme("menu"); world.mode("menu");
   const factory = factoryLevels();
   const over = new Map(custom.map((c) => [c.id, c]));

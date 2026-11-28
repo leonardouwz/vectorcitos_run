@@ -2,6 +2,7 @@ import "@fontsource/syne-mono";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/600.css";
 import "./style.css";
+import "./v1.css";
 import { applyDevice, noteKey } from "./device";
 import { createScene } from "./scene";
 import { refreshLevels } from "./remote";

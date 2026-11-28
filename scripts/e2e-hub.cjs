@@ -1,0 +1,136 @@
+// Prueba del menú principal v1 en un navegador real. Uso: node scripts/e2e-hub.cjs <nombre> <ancho> <alto> <táctil 1/0> [3d]
+// (necesita `npm run build && npx vite preview --port 5198` y playwright). Con "3d" deja la escena visible y saca capturas.
+const { chromium } = require('playwright');
+const [n, w, h, touch, with3d] = [process.argv[2], +process.argv[3], +process.argv[4], process.argv[5] === '1', process.argv[6] === '3d'];
+const fails = [];
+const ok = (c, m) => { if (!c) fails.push(m); console.log(c ? 'ok  ' : 'FAIL', m); };
+(async () => {
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch && w < 500, locale: 'es-ES' });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', (e) => errs.push(e.message));
+  await p.route('**/api/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  if (!with3d) {
+    await p.addInitScript(() => {
+      const st = document.createElement('style');
+      st.textContent = '#scene{display:none!important}';
+      document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
+    });
+  }
+  const st = () => p.evaluate(() => JSON.parse(localStorage.getItem('vectorcitos-run:v2')));
+  const shot = (k) => p.screenshot({ timeout: 120000, path: `hub-${n}-${k}.png` });
+  await p.goto('http://localhost:5198/');
+  await p.waitForTimeout(700);
+  await p.click('#play');
+  await p.fill('#name', 'Ana');
+  await p.press('#name', 'Enter');
+  await p.waitForTimeout(300);
+  await p.click('#ok');
+  await p.waitForTimeout(500);
+  await p.evaluate(() => {
+    const k = 'vectorcitos-run:v2';
+    const d = JSON.parse(localStorage.getItem(k));
+    d.coins.Ana = 600;
+    localStorage.setItem(k, JSON.stringify(d));
+  });
+  await p.reload();
+  await p.waitForTimeout(500);
+  await p.click('#play');
+  await p.waitForTimeout(600);
+
+  ok((await p.$('.shell')) !== null, 'entra al menú principal (carcasa)');
+  ok((await p.$$('.h-tab')).length === 5, 'cinco pestañas de navegación');
+  ok((await p.textContent('#h-name')) === 'Ana', 'el HUD muestra al jugador');
+  ok((await p.textContent('#h-coins')) === '600', 'el HUD muestra las monedas');
+  if (with3d) await shot('play');
+  // Jugar
+  ok((await p.$$('.h-node')).length === 10, 'mundo Fácil: 10 niveles en el camino');
+  ok(await p.$eval('.h-node.now', (e) => e.dataset.id === '1'), 'el nivel actual (1) está marcado');
+  await p.click('.h-world[data-w=medium]');
+  await p.waitForTimeout(150);
+  ok(await p.$eval('.h-world[data-w=medium]', (e) => e.getAttribute('aria-selected') === 'true'), 'cambiar de mundo marca la pestaña');
+  await p.click('.h-node >> nth=2', { force: true }); // aria-disabled: Playwright lo trata como desactivado
+  await p.waitForTimeout(250);
+  ok((await p.$('.h-sheet')) === null, 'un nivel bloqueado no abre la hoja');
+  await p.click('.h-world[data-w=easy]');
+  await p.waitForTimeout(150);
+  await p.click('.h-node >> nth=0');
+  await p.waitForTimeout(300);
+  ok((await p.$('.h-sheet')) !== null, 'tocar un nivel abre la hoja con su frase');
+  if (with3d) await shot('sheet');
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(350);
+  ok((await p.$('.h-sheet')) === null, 'Escape cierra la hoja');
+  await p.click('.h-node >> nth=0');
+  await p.waitForTimeout(250);
+  await p.click('#h-go');
+  await p.waitForTimeout(500);
+  ok((await p.$('.play')) !== null, 'Jugar desde la hoja abre el nivel');
+  await p.click('#exitbtn');
+  await p.waitForTimeout(600);
+  ok((await p.$('.shell')) !== null && (await p.$('#h-cont')) !== null, 'salir del nivel vuelve al menú principal');
+  // Navegación
+  await p.click('.h-tab[data-t=daily]');
+  await p.waitForTimeout(300);
+  ok((await p.$('#h-daily')) !== null, 'pestaña Reto: botón de jugar');
+  if (with3d) await shot('daily');
+  await p.click('.h-tab[data-t=shop]');
+  await p.waitForTimeout(300);
+  ok((await p.$$('.h-item')).length > 5, 'pestaña Tienda: objetos');
+  await p.click('[data-id=propeller]');
+  await p.waitForTimeout(150);
+  ok(!(await p.$eval('#h-act', (e) => e.disabled)), 'botón de comprar activo');
+  await p.click('#h-act');
+  await p.waitForTimeout(200);
+  let d = await st();
+  ok(d.owned.Ana?.includes('propeller') && d.coins.Ana === 490 && d.worn.Ana?.head === 'propeller', 'comprar: inventario, monedas y puesto');
+  ok((await p.textContent('#h-coins')) === '490', 'comprar: el HUD se actualiza');
+  await p.click('#h-act');
+  await p.waitForTimeout(200);
+  d = await st();
+  ok(!d.worn.Ana?.head, 'quitar funciona');
+  await p.click('#h-act');
+  await p.waitForTimeout(200);
+  d = await st();
+  ok(d.worn.Ana?.head === 'propeller', 'poner funciona');
+  await p.click('[data-id=spacehelmet]');
+  await p.waitForTimeout(150);
+  ok(await p.$eval('#h-act', (e) => e.disabled), 'sin monedas el botón se desactiva');
+  if (with3d) await shot('shop');
+  await p.click('.h-tab[data-t=progress]');
+  await p.waitForTimeout(300);
+  ok((await p.$('#h-rank')) !== null, 'pestaña Progreso: acceso al ranking');
+  await p.click('.h-tab[data-t=more]');
+  await p.waitForTimeout(300);
+  const mus = await p.$eval('#h-music', (e) => e.getAttribute('aria-checked'));
+  await p.click('#h-music');
+  await p.waitForTimeout(100);
+  ok((await p.$eval('#h-music', (e) => e.getAttribute('aria-checked'))) !== mus, 'ajustes: el interruptor de música cambia');
+  ok((await st()).music === (mus !== 'true'), 'ajustes: se guarda');
+  await p.click('[data-l=en]');
+  await p.waitForTimeout(400);
+  ok((await p.textContent('.h-tab[data-t=more] span')) === 'Settings', 'cambiar a inglés actualiza los textos');
+  await p.click('[data-l=es]');
+  await p.waitForTimeout(300);
+  if (with3d) await shot('more');
+  await p.click('.h-tab[data-t=daily]');
+  await p.waitForTimeout(200);
+  await p.goBack();
+  await p.waitForTimeout(300);
+  ok(await p.$eval('.h-tab[data-t=more]', (e) => e.getAttribute('aria-current') === 'page'), 'el botón atrás del navegador vuelve a la pestaña anterior');
+  await p.focus('.h-tab[data-t=more]');
+  await p.keyboard.press('ArrowRight');
+  await p.waitForTimeout(250);
+  ok(await p.$eval('.h-tab[data-t=play]', (e) => e.getAttribute('aria-current') === 'page'), 'las flechas mueven entre pestañas');
+  const ov = await p.evaluate(() => {
+    const a = document.getElementById('app');
+    return { h: a.scrollHeight - a.clientHeight, x: document.documentElement.scrollWidth - innerWidth };
+  });
+  ok(ov.h <= 1 && ov.x <= 1, 'la pantalla no se desborda (' + JSON.stringify(ov) + ')');
+  ok(errs.length === 0, 'sin errores de consola ' + JSON.stringify(errs));
+  await shot('end');
+  await b.close();
+  console.log(n, fails.length ? 'FALLOS: ' + fails.length : 'TODO BIEN');
+  process.exit(fails.length ? 1 : 0);
+})().catch((e) => { console.error(n, e.message.slice(0, 400)); process.exit(2); });
