@@ -5,6 +5,7 @@
 - `main`: producción (https://vectorcitos-run.vercel.app). Solo entra lo aprobado, por pull request y cuando el dueño pide el merge.
 - `claude/zen-albattani-tmnejk`: **ideas estructuradas** (mejoras ya definidas). Vista previa: https://vectorcitos-run-git-claude-zen-alba-b0cadc-leonardouwz-projects.vercel.app
 - `claude/conceptos`: **ideas conceptuales y pruebas** (experimentos como el modo Esquiva). No se mezcla con `main` sin que el dueño lo decida. Vista previa: https://vectorcitos-run-git-claude-conceptos-leonardouwz-projects.vercel.app
+- `claude/v1-diseno`: **rediseño radical para la v1.0.0** (carcasa con HUD y navegación, patrones de juego pro, pensado para PC y sobre todo móvil). Se revisa con el dueño antes de decidir si entra. Vista previa: https://vectorcitos-run-git-claude-v1-diseno-leonardouwz-projects.vercel.app
 - Cuando una mejora estructurada también sirve al concepto (o al revés), se pasa a la otra rama con un merge y se avisa.
 - No se hace merge a `main` sin que el dueño lo pida de forma explícita.
 

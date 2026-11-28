@@ -166,7 +166,7 @@
 @media (max-aspect-ratio: 21/20) {
   .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(88px, 1fr) auto auto; grid-template-areas: "hud" "stage" "panel" "nav"; padding: max(10px, env(safe-area-inset-top)) 0 0; gap: 0; }
   .h-hud { padding: 0 max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); }
-  .h-panel { margin: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left)); border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; max-height: min(60vh, 560px); box-shadow: 0 -10px 30px rgb(0 0 0 / .35); }
+  .h-panel { margin: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left)); border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; max-height: min(64vh, 580px); box-shadow: 0 -10px 30px rgb(0 0 0 / .35); }
   .h-paneltitle { padding: 14px 16px 2px; } .h-paneltitle h2 { font-size: 1.1rem; }
   .h-view { padding: 6px 14px 14px; gap: 12px; }
   .h-nav { flex-direction: row; align-self: stretch; margin: 0; padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); border-radius: 0; border: 0; border-top: 1px solid var(--stroke); background: var(--glass-strong); box-shadow: none; gap: 2px; }
@@ -225,3 +225,11 @@ main.center, .panel { background: var(--glass-strong); border: 1px solid var(--s
   .h-note small { display: inline; }
   body:has(.shell) #toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
 }
+
+.ver[data-channel="v1"] { color: #8ec5ff; }
+
+/* pestañas y textos de las pantallas anteriores */
+.tab { font: 600 .9rem var(--sans); padding: .5rem 1rem; border-radius: 999px; background: var(--ink-2); border: 1px solid var(--stroke); color: var(--text-2); cursor: pointer; transition: background-color .18s, color .18s, border-color .18s, transform .12s; }
+.tab:hover { border-color: var(--stroke-2); } .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.hint, .good, .combo-res, .duel, .tag, .stats dt { font-family: var(--sans); } .good, .combo-res { font-weight: 600; }
+.stats div { border-radius: var(--r-md); border-color: var(--stroke); background: var(--ink-2); }
