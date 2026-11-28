@@ -143,8 +143,10 @@ function dailyView(): { html: string; mount: (r: HTMLElement) => void } {
       <p class="h-note ${danger ? "warn" : ""}">${done ? `${tr("doneBig")} · ${done.wpm} ${tr("wpmShort")}` : danger ? tr("danger") : tr("daily1")}<br><small>${tr("timeLeft")} <b id="h-left">${clockText(msToMidnight())}</b></small></p>
       <button class="h-cta" id="h-daily" data-autofocus>${gl("play")} ${tr("play")}</button>
     </section>
-    ${store.giftReady ? `<button class="h-row gift" id="h-gift"><span class="h-rowart">${ic("gift")}</span><span class="h-rowtext"><b>${tr("giftDay")}</b><small>+${store.giftAmount}</small></span><span class="h-rowgo">${gl("chevron")}</span></button>` : ""}
-    <button class="h-row" id="h-time"><span class="h-rowart">${ic("time")}</span><span class="h-rowtext"><b>${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></span><span class="h-rowgo">${gl("chevron")}</span></button>
+    <div class="h-duo">
+      ${store.giftReady ? `<button class="h-tilebtn gift" id="h-gift">${ic("gift")}<b>${tr("giftDay")}</b><small>+${store.giftAmount}</small></button>` : ""}
+      <button class="h-tilebtn" id="h-time">${ic("time")}<b>${tr("timeAttack")}</b><small>${tr("bestScore")}: ${store.bestTime || "–"}</small></button>
+    </div>
     <div class="h-remind" id="h-remind"></div>`;
   const mount = (r: HTMLElement) => {
     const num = r.querySelector<HTMLElement>("#h-streaknum")!;
@@ -323,12 +325,12 @@ export function updateHud() {
   if (a) a.textContent = (store.current[0] ?? "?").toUpperCase();
 }
 
-/** Qué parte de la pantalla ocupa el panel: la cámara deja a Vectorcito en el espacio que queda libre. */
+/** Dónde queda el escenario libre: la cámara deja a Vectorcito en su centro, sin que el panel lo tape. */
 function frame() {
-  const panel = document.getElementById("h-panel");
-  if (!panel) return;
-  const wide = innerWidth / innerHeight > 1.05, r = panel.getBoundingClientRect();
-  ui.getWorld().hub(cur === "shop", wide ? r.width / innerWidth : r.height / innerHeight);
+  const stage = document.querySelector<HTMLElement>(".h-stage");
+  if (!stage) return;
+  const r = stage.getBoundingClientRect();
+  ui.getWorld().hub(cur === "shop", (r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
 }
 
 function render(animate = false) {
@@ -384,7 +386,7 @@ export function openHub(tab?: HubTab, push = true) {
         nav.querySelector<HTMLElement>(`[data-t="${next}"]`)?.focus();
       });
       root.querySelector("#h-who")!.addEventListener("click", () => { sfx.click(); go("more"); });
-      const ro = new ResizeObserver(() => frame()); ro.observe(root.querySelector("#h-panel")!);
+      const ro = new ResizeObserver(() => frame()); ro.observe(root.querySelector("#h-panel")!); ro.observe(root.querySelector(".h-stage")!);
       ui.onLeave(() => { ro.disconnect(); closeSheet?.(); });
       render(false);
     }, true);

@@ -212,3 +212,16 @@ main.center, .panel { background: var(--glass-strong); border: 1px solid var(--s
 .logo { font-size: clamp(2.6rem, 11vw, 5.6rem); text-shadow: 0 0 40px rgb(23 255 147 / .35); }
 .tag { color: var(--text-2); font: 400 clamp(1rem, 2.6vw, 1.15rem)/1.55 var(--sans); max-width: 34ch; margin-inline: auto; }
 .ver { font-family: var(--mono); }
+
+/* ----- Reto: fichas de acción en dos columnas y tarjeta compacta en teléfonos */
+.h-duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.h-tilebtn { display: grid; justify-items: start; gap: 2px; padding: 12px 14px; text-align: left; color: var(--text); background: var(--ink-2); border: 1px solid var(--stroke); border-radius: var(--r-md); cursor: pointer; font-family: var(--sans); transition: border-color .18s, background-color .18s, transform .12s var(--ease); }
+.h-tilebtn:hover { border-color: var(--stroke-2); background: var(--ink-3); } .h-tilebtn:active { transform: scale(.97); }
+.h-tilebtn .ic { width: 32px; height: 32px; margin-bottom: 4px; } .h-tilebtn b { font: 700 .92rem var(--sans); } .h-tilebtn small { color: var(--text-3); font: 400 .76rem var(--sans); }
+.h-tilebtn.gift { border-color: rgb(255 200 87 / .55); background: linear-gradient(130deg, rgb(255 200 87 / .14), var(--ink-2) 70%); } .h-tilebtn.gift small { color: var(--gold); font-weight: 700; }
+@media (max-aspect-ratio: 21/20) {
+  .h-streakcard { padding: 12px; gap: 8px; } .h-flame .ic { width: 46px; height: 46px; } .h-streaknum b { font-size: 2.3rem; } .h-streaknum span { margin-top: 0; }
+  .h-week { gap: 8px; } .h-week i { width: 26px; height: 26px; } .h-cta { min-height: 50px; }
+  .h-note small { display: inline; }
+  body:has(.shell) #toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+}
