@@ -10,6 +10,7 @@ import { adminLogin, adminLogout, custom, isAdmin, saveLevels } from "./remote";
 import { disablePush, enablePush, pushState, syncPush, type PushState } from "./push";
 import { fetchBoard, forget, idOf, submit, type Place } from "./online";
 import { t, type Key } from "./i18n";
+import { channel, versionText } from "./version";
 import { store } from "./store";
 import { music, setMusicOn, setMuted, sfx, unlockAudio } from "./audio";
 import type { createScene } from "./scene";
@@ -130,6 +131,7 @@ export function home() {
         ${store.current ? `<button class="ghost" id="switch">${tr("switchPlayer")}</button>` : ""}
         <button class="ghost" id="box">${ic("box")} ${tr("box")}</button>
       </div>
+      <span class="ver" data-channel="${channel}" title="${tr("version")}">${versionText}</span>
     </main>`, (r) => {
     wireToolbar(r, home);
     on(r, "#box", () => suggest(home));
