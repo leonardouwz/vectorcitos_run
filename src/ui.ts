@@ -58,9 +58,9 @@ function errorFx(lostCombo: number) {
   el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
   const play = document.querySelector<HTMLElement>(".play");
   if (play) { play.classList.remove("jolt"); void play.offsetWidth; play.classList.add("jolt"); }
-  if (lostCombo >= 3) {
+  if (lostCombo >= 1) { // cualquier racha de palabras limpias que se rompe avisa
     const t = document.createElement("div");
-    t.className = "lostfx"; t.innerHTML = `${ic("combo")} ${tr("combo")} x${comboTier(lostCombo)} ✕`;
+    t.className = "lostfx"; t.innerHTML = `${ic("combo")} ${tr("combo")} x${comboTier(lostCombo)} ✕ <small>${lostCombo} ${tr("cleanWords")}</small>`;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 1100);
   }
