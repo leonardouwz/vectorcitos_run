@@ -301,7 +301,7 @@ function levelMap() {
       <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : "&nbsp;"}</span><small>${b ? `${b.wpm} ${tr("wpmShort")}` : "&nbsp;"}</small></button>`;
   }).join("");
   music.mood("menu"); // fuera de un nivel suena la música de inicio
-  world.theme(tab);
+  world.theme("menu"); // todos los menús usan el ambiente del inicio; cada nivel pone el suyo al empezar
   world.mode("menu");
   show(`${toolbar()}
     <main class="wide">
