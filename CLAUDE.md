@@ -13,3 +13,10 @@
 - Idiomas: español e inglés en todo texto del juego (`src/i18n.ts`).
 - Vercel: proyecto `vectorcitos-run`; `ADMIN_KEY`, `VAPID_*` y `CRON_SECRET` ya están configuradas.
 - Los créditos de Higgsfield son limitados: generar solo lo necesario.
+
+## Versiones (v0.0.0)
+
+- Formato `v0.0.0`: 1.º = temporada o cambio realmente grande (la `v1.0.0` será el lanzamiento oficial; ahí se añade la ventana de «novedades de la versión»); 2.º = mecánicas y novedades; 3.º = arreglos y cambios pequeños. Solo cuentan cambios significativos o pequeños de verdad, no cada commit.
+- Cada entorno cuenta aparte y su lista de cambios vive en `src/versions/`: `production.ts` (`main`), `test.ts` (`claude/zen-albattani-tmnejk`) y `concept.ts` (`claude/conceptos`). Los de pruebas y conceptos parten de la última de producción.
+- **Cada vez que se haga un cambio que cuente, añade su entrada en el archivo de la rama en la que se trabaja** (con textos en español e inglés). Al hacer merge a `main`, las entradas de `test.ts` pasan a `production.ts` (re-numeradas sobre la última de producción) y `test.ts` se vacía.
+- Se muestra abajo a la izquierda solo en el inicio: `v0.8.0` en producción; `v0.8.3 · pruebas` o `· conceptos` en las demás. El entorno se detecta al compilar en Vercel (`vite.config.ts`).
