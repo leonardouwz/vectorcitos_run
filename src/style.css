@@ -141,7 +141,7 @@ textarea.field { resize: vertical; min-height: 7rem; font-size: 1rem; }
 .play .kbd { background: rgb(5 4 41 / .82); padding: .6rem .8rem; border-radius: 8px; width: fit-content; }
 main.shop { gap: .6rem; }
 .shopdock { margin-top: auto; display: flex; flex-direction: column; gap: .5rem; }
-.shopbox { display: flex; flex-direction: column; gap: .5rem; height: min(42vh, 420px); overflow: hidden; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
+.shopbox { display: flex; flex-direction: column; gap: .5rem; height: min(34vh, 340px); overflow: hidden; background: rgb(5 4 41 / .9); border: 1px solid var(--linea); border-radius: 10px; padding: .8rem 1rem; }
 .slot { display: grid; gap: .4rem; } .slot h3 { font-size: .95rem; color: var(--suave); }
 .item { display: grid; grid-template-columns: 2rem 1fr auto auto; gap: .7rem; align-items: center; padding: .35rem .5rem; border-radius: 8px; border: 1px solid transparent; }
 .item.wearing { border-color: var(--neon); background: rgb(23 255 147 / .08); }
@@ -320,22 +320,24 @@ button, .mode, .card, .lvl, .tab { touch-action: manipulation; -webkit-tap-highl
 /* Reparto de botones: tienda y pestañas en pantallas pequeñas */
 .shopbox .tabs { flex-wrap: nowrap; gap: .3rem; }
 .shopbox .tab { flex: 1 1 0; min-width: 0; padding: .45rem .2rem; font-size: .8rem; text-align: center; }
-html[data-kind="phone"] .shopbox { height: 42vh; padding: .5rem .6rem; gap: .4rem; }
+html[data-kind="phone"] .shopbox { height: 34vh; padding: .5rem .6rem; gap: .4rem; }
 html[data-kind="phone"] .detail { padding: .5rem .6rem; gap: .5rem; }
 html[data-kind="phone"] .detail .art .ic { width: 2.4rem; height: 2.4rem; }
 html[data-kind="phone"] .detail small { font-size: .8rem; }
-html[data-kind="tablet"] .shopbox { height: min(42vh, 520px); }
+html[data-kind="tablet"] .shopbox { height: min(34vh, 420px); }
 
 /* Tienda sin deslizar: ficha fija arriba, tarjetas en páginas y selector de página */
 .shopdock .detail { flex: none; height: 5.2rem; margin: 0; overflow: hidden; align-items: center; } .detail.empty { display: grid; place-items: center; }
 .shopbox .tabs { flex: none; }
-.shopbox .cards { flex: 1; min-height: 0; display: grid; gap: .5rem; overflow: hidden; }
-.shopbox .card { min-height: 0; padding: .35rem .25rem; gap: .1rem; align-content: center; font-size: .82rem; overflow: hidden; }
+.shopbox .cards { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: .5rem; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem .2rem 0; scrollbar-width: auto; scrollbar-color: var(--neon) rgb(10 10 53); }
+/* Barra de deslizar propia: ancha, con los colores del juego */
+.shopbox .cards::-webkit-scrollbar { width: 14px; }
+.shopbox .cards::-webkit-scrollbar-track { background: rgb(10 10 53); border: 1px solid var(--linea); border-radius: 10px; }
+.shopbox .cards::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--neon), #0fb86b); border: 3px solid rgb(10 10 53); border-radius: 10px; box-shadow: 0 0 8px rgb(23 255 147 / .5); }
+.shopbox .cards::-webkit-scrollbar-thumb:hover { background: var(--hielo); }
+.shopbox .card { min-height: 78px; padding: .35rem .25rem; gap: .1rem; align-content: center; font-size: .82rem; overflow: hidden; }
 .shopbox .card .art { height: 1.7rem; } .shopbox .card .art .ic { width: 1.7rem; height: 1.7rem; } .shopbox .card .swatch { width: 1.5rem; height: 1.5rem; border-width: 2px; }
 .shopbox .card b { line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.pager { flex: none; display: flex; gap: 1rem; justify-content: center; align-items: center; height: 2rem; font-family: var(--mono); color: var(--suave); }
-.pager .ghost { padding: .1rem .8rem; font-size: 1.3rem; } .pager .ghost:disabled { opacity: .3; }
-.shopbox #scount { flex: none; margin: 0; font-size: .8rem; }
 @media (min-width: 700px) { .shopbox .card { font-size: .9rem; } .shopbox .card .art { height: 2.1rem; } .shopbox .card .art .ic { width: 2.1rem; height: 2.1rem; } }
 @media (orientation: landscape) and (max-height: 520px) {
   html[data-kind="phone"] .shopdock { height: calc(var(--vh, 100vh) - 80px); width: min(58%, 520px); margin-left: auto; }
