@@ -21,3 +21,11 @@
 - **Cada vez que se haga un cambio que cuente, añade su entrada en el archivo de la rama en la que se trabaja** (con textos en español e inglés). En pruebas cada cambio sube su propio número (0.8.4 → 0.8.5 → …).
 - **En producción solo cuenta el merge**: varios cambios de pruebas se juntan en UNA sola versión de producción. Al hacer merge a `main`, las entradas de `test.ts` se resumen en una única entrada de `production.ts` que sube un paso sobre la última de producción (tercer número si todo es pequeño; segundo si hay una mecánica o novedad), y `test.ts` se vacía. Ejemplo: producción v0.8.3, pruebas llegó a v0.8.5 → tras el merge producción es v0.8.4 (no v0.8.5). Las versiones de producción ya publicadas no se cambian.
 - Se muestra abajo a la izquierda solo en el inicio: `v0.8.0` en producción; `v0.8.3 · pruebas` o `· conceptos` en las demás. El entorno se detecta al compilar en Vercel (`vite.config.ts`).
+
+## Ideas futuras (hoja de ruta, aún sin hacer)
+
+- **Sección de skins** (personajes): cambiar al personaje entero, aparte de los cosméticos. Pendiente decidir cuáles; las skins serán **caras**.
+- **Claudito**: primera skin pensada, inspirada en la mascota de Claude, pero con un diseño propio y cambios claros para no copiar el original ni infringir derechos de autor (nombre propio, forma y detalles distintos; nada de usar el arte oficial). Solo se consigue **caro** o **al terminar todos los niveles**.
+- **Muchos más niveles**: ampliar bastante cada dificultad (hoy hay 10 por dificultad). El editor del modo desarrollador ya permite añadir niveles; cuando haya más, revisar el desbloqueo de Claudito (terminar todos) y el mapa de niveles para listas largas.
+- **Más cosméticos** (cabeza, cara, cuerpo, colores y estelas).
+- **Ventana de novedades** por versión, al lanzar la v1.0.0.
