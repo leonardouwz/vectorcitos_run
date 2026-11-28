@@ -30,14 +30,32 @@ const DAILY_ID = 900, TIME_ID = 901; // partidas que no son un nivel
 const lvlName = (l: Level) => l.title?.[store.lang] ?? `${tr("level")} ${l.n}`;
 const stars = (n: number, total = 3) => "★".repeat(n) + `<span class="off">${"★".repeat(total - n)}</span>`;
 
+/** Verdadero cuando la pantalla se vuelve a dibujar por un cambio en ella misma (idioma, pestaña...): sin animación de entrada y sin perder el desplazamiento ni el foco. */
+let soft = false;
+const again = <T,>(fn: () => T): T => { soft = true; return fn(); };
+
 function show(html: string, onMount?: (root: HTMLElement) => void) {
-  world.dress(store.worn);
+  const keep = soft, top = app.scrollTop, focused = keep ? (document.activeElement as HTMLElement | null) : null;
+  const focusSel = focused?.id ? `#${focused.id}` : focused?.dataset?.b ? `[data-b="${focused.dataset.b}"]` : focused?.dataset?.s ? `[data-s="${focused.dataset.s}"]` : focused?.dataset?.act ? `[data-act="${focused.dataset.act}"]` : "";
+  soft = false;
+  if (!keep) world.dress(store.worn);
   cleanup?.();
   cleanup = null;
-  app.innerHTML = `<div class="screen">${html}</div>`;
+  app.innerHTML = `<div class="screen${keep ? " still" : ""}">${html}</div>`;
   const root = app.firstElementChild as HTMLElement;
-  root.querySelector<HTMLElement>("[data-focus]")?.focus();
+  if (keep) { app.scrollTop = top; if (focusSel) root.querySelector<HTMLElement>(focusSel)?.focus({ preventScroll: true }); }
+  else root.querySelector<HTMLElement>("[data-focus]")?.focus();
   onMount?.(root);
+}
+
+/** Entrada suave de los elementos de una lista que acaba de cambiar (pestañas). */
+function swap(el: HTMLElement) { el.classList.remove("swap"); void el.offsetWidth; el.classList.add("swap"); }
+
+/** Actualiza los botones de la barra de arriba sin volver a dibujar la pantalla. */
+function syncToolbar(root: HTMLElement) {
+  root.querySelector('[data-act="music"]')?.setAttribute("aria-pressed", String(store.music));
+  const snd = root.querySelector('[data-act="sound"]');
+  if (snd) { snd.setAttribute("aria-pressed", String(!store.muted)); snd.innerHTML = ic(store.muted ? "mute" : "sound"); }
 }
 const on = (root: HTMLElement, sel: string, fn: () => void) =>
   root.querySelector(sel)?.addEventListener("click", () => { sfx.click(); fn(); });
@@ -82,19 +100,19 @@ function wireToolbar(root: HTMLElement, rerender: () => void) {
   root.querySelector('[data-act="lang"]')?.addEventListener("click", () => {
     store.lang = store.lang === "es" ? "en" : "es";
     document.documentElement.lang = store.lang;
-    rerender();
+    again(rerender); // cambian todos los textos: se redibuja, pero sin animación de entrada
   });
   root.querySelector('[data-act="music"]')?.addEventListener("click", () => {
     store.music = !store.music;
     setMusicOn(store.music);
     unlockAudio(); music.start();
-    rerender();
+    syncToolbar(root);
   });
   root.querySelector('[data-act="sound"]')?.addEventListener("click", () => {
     store.muted = !store.muted;
     setMuted(store.muted);
     unlockAudio(); music.start();
-    rerender();
+    syncToolbar(root);
   });
 }
 
@@ -197,52 +215,73 @@ let preview: string | null = null; // lo que se está probando en la tienda (se 
 function shop() {
   world.theme("menu");
   world.mode("shop");
-  const worn = store.worn;
-  const items = ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price);
-  const sel = ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null;
-  const visible = ITEMS.filter((i) => !i.admin || isAdmin());
-  const owned = visible.filter((i) => store.owns(i.id)).length;
   const swatch = (i: (typeof ITEMS)[number]) => i.finish === "metal" ? `<i class="swatch chrome"></i>` : i.finish === "dark" ? `<i class="swatch dark"></i>` : i.finish === "dev" ? `<i class="swatch dev"></i>` : i.finish === "cycle" ? `<i class="swatch cycle"></i>` : `<i class="swatch" style="background:hsl(${(SWATCH_BASE + (i.hue ?? 0) + 360) % 360} 90% 55%)"></i>`;
-  const detail = (() => {
-    if (!sel) return `<p class="hint">${tr("shopHint")}</p>`;
-    const has = store.owns(sel.id), on = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
-    const btn = has ? `<button class="btn ${on ? "ghost" : ""}" id="act">${on ? tr("unequip") : tr("equip")}</button>`
+  const current = () => {
+    const worn = store.worn;
+    return { worn, sel: ITEMS.find((i) => i.id === preview && i.slot === shopTab) ?? ITEMS.find((i) => i.id === worn[shopTab]) ?? null };
+  };
+  const detailHtml = () => {
+    const { worn, sel } = current();
+    if (!sel) return `<div class="detail empty"><p class="hint">${tr("nothingWorn")}</p></div>`;
+    const has = store.owns(sel.id), isOn = worn[sel.slot] === sel.id, miss = sel.price - store.coins;
+    const btn = has ? `<button class="btn ${isOn ? "ghost-b" : ""}" id="act">${isOn ? tr("unequip") : tr("equip")}</button>`
       : miss <= 0 ? `<button class="btn buy" id="act">${tr("buy")} · ${ic("coin")} ${sel.price}</button>`
       : `<button class="btn ghost-b" id="act" disabled>${ic("coin")} ${sel.price} · −${miss}</button>`;
     return `<div class="detail ${rarityOfItem(sel)}"><span class="art">${sel.hue !== undefined ? swatch(sel) : ic(sel.icon)}</span>
       <div><em class="tier">${RARITY_NAMES[rarityOfItem(sel)][store.lang]}</em><b>${sel.name[store.lang]}</b><small>${sel.blurb[store.lang]}</small></div>${btn}</div>`;
-  })();
+  };
+  const cardsHtml = () => {
+    const { worn, sel } = current();
+    return ITEMS.filter((i) => i.slot === shopTab && (!i.admin || isAdmin())).sort((a, b) => a.price - b.price).map((i) => {
+      const has = store.owns(i.id), isOn = worn[i.slot] === i.id, isSel = sel?.id === i.id;
+      return `<button class="card ${rarityOfItem(i)} ${isOn ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
+        <span class="art">${i.hue !== undefined ? swatch(i) : ic(i.icon)}</span><b>${i.name[store.lang]}</b>
+        <small>${has ? (isOn ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
+    }).join("");
+  };
+
   show(`${toolbar()}
     <main class="wide shop">
-      ${topbar(`${ic("shop")} ${tr("shop")}`, `${ic("coin")} ${store.coinsText}`)}
-      <div class="shopbox">
-        ${detail}
+      ${topbar(`${ic("shop")} ${tr("shop")}`, `<span id="coins">${ic("coin")} ${store.coinsText}</span>`)}
+      <div class="shopdock">
+        <div id="sdetail"></div>
+        <div class="shopbox">
         <div class="tabs" role="tablist">${SLOTS.map((sl) => `<button role="tab" class="tab" aria-selected="${sl === shopTab}" data-s="${sl}">${SLOT_NAMES[sl][store.lang]}</button>`).join("")}</div>
-        <div class="cards">${items.map((i) => {
-          const has = store.owns(i.id), on = worn[i.slot] === i.id, isSel = sel?.id === i.id;
-          const art = i.hue !== undefined ? swatch(i) : ic(i.icon);
-          return `<button class="card ${rarityOfItem(i)} ${on ? "wearing" : ""} ${has ? "owned" : ""} ${isSel ? "sel" : ""}" data-id="${i.id}" aria-pressed="${isSel}">
-            <span class="art">${art}</span><b>${i.name[store.lang]}</b>
-            <small>${has ? (on ? `✓ ${tr("wearing")}` : "✓") : `${ic("coin")} ${i.price}`}</small></button>`;
-        }).join("")}</div>
-        <p class="hint">${owned} / ${visible.length} ✦ ${tr("shopHint")}</p>
+        <div class="cards" id="scards"></div>
+        </div>
       </div>
     </main>`, (r) => {
     wireToolbar(r, shop);
-    if (sel && !store.owns(sel.id)) world.dress({ ...worn, [sel.slot]: sel.id }); // probárselo antes de comprar
+    const q = <T extends HTMLElement>(sel: string) => r.querySelector<T>(sel)!;
+    /** Solo se repinta lo que cambió: la ficha, las tarjetas y las monedas (no toda la pantalla). */
+    const paint = (what: { cards?: boolean } = { cards: true }) => {
+      const { worn, sel } = current();
+      q("#sdetail").innerHTML = detailHtml();
+      if (what.cards) q("#scards").innerHTML = cardsHtml();
+      else r.querySelectorAll<HTMLElement>(".card").forEach((c) => { const on = c.dataset.id === sel?.id; c.classList.toggle("sel", on); c.setAttribute("aria-pressed", String(on)); });
+      q("#coins").innerHTML = `${ic("coin")} ${store.coinsText}`;
+      r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.s === shopTab)));
+      world.dress(sel && !store.owns(sel.id) ? { ...worn, [sel.slot]: sel.id } : worn); // probárselo antes de comprarlo
+    };
+    paint();
     on(r, "#back", () => { preview = null; world.mode("menu"); levelMap(); });
-    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => { sfx.click(); shopTab = b.dataset.s as Slot; preview = null; shop(); }));
-    r.querySelectorAll<HTMLElement>(".card").forEach((c) => c.addEventListener("click", () => { sfx.click(); preview = c.dataset.id!; shop(); }));
-    on(r, "#act", () => {
-      if (!sel) return;
-      if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
-      else if (store.buy(sel.id)) {
-        const rar = rarityOfItem(sel);
-        if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
-        store.wear(sel.slot, sel.id);
-        toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
-      } else { sfx.error(); toast(tr("notEnough")); return; }
-      shop();
+    q(".shopdock").addEventListener("click", (e) => {
+      const t = e.target as HTMLElement;
+      const tab = t.closest<HTMLElement>("[data-s]"), card = t.closest<HTMLElement>(".card"), act = t.closest<HTMLElement>("#act");
+      if (tab) { sfx.click(); shopTab = tab.dataset.s as Slot; preview = null; paint(); swap(q("#scards")); q("#scards").scrollTop = 0; }
+      else if (card) { sfx.click(); preview = card.dataset.id!; paint({ cards: false }); }
+      else if (act && !(act as HTMLButtonElement).disabled) {
+        const { worn, sel } = current();
+        if (!sel) return;
+        if (store.owns(sel.id)) { sfx.click(); store.wear(sel.slot, worn[sel.slot] === sel.id ? null : sel.id); }
+        else if (store.buy(sel.id)) {
+          const rar = rarityOfItem(sel);
+          if (rar === "legendary") { sfx.fanfare(); world.win(); } else if (rar === "epic") { sfx.fanfare(); world.word(); } else { sfx.star(rar === "rare" ? 2 : 1); world.word(); }
+          store.wear(sel.slot, sel.id);
+          toast(`${ic("coin")} ${tr("bought")} <b>${sel.name[store.lang]}</b>`);
+        } else { sfx.error(); toast(tr("notEnough")); return; }
+        paint();
+      }
     });
   });
 }
@@ -256,6 +295,11 @@ function startChallenge() {
 }
 
 function levelMap() {
+  const gridHtml = () => LEVELS.filter((l) => l.diff === tab).map((l) => {
+    const open = store.unlocked(l.id), b = store.best(l.id);
+    return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
+      <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : "&nbsp;"}</span><small>${b ? `${b.wpm} ${tr("wpmShort")}` : "&nbsp;"}</small></button>`;
+  }).join("");
   music.mood("menu"); // fuera de un nivel suena la música de inicio
   world.theme(tab);
   world.mode("menu");
@@ -276,11 +320,7 @@ function levelMap() {
         const all = LEVELS.filter((l) => l.diff === d), got = all.filter((l) => store.best(l.id)).length;
         return `<button role="tab" class="tab" aria-selected="${d === tab}" data-d="${d}">${tr(d)} <small>${got}/${all.length}</small></button>`;
       }).join("")}</div>
-      <div class="grid">${LEVELS.filter((l) => l.diff === tab).map((l) => {
-        const open = store.unlocked(l.id), b = store.best(l.id);
-        return `<button class="lvl ${open ? "open" : "closed"}" data-id="${l.id}" ${open ? "" : "disabled"} aria-label="${lvlName(l)}, ${open ? tr("open") : tr("locked")}">
-          <i>${ic(open ? "game" : "locked")}</i><b>${lvlName(l)}</b><span class="st">${b ? stars(b.stars) : "&nbsp;"}</span><small>${b ? `${b.wpm} ${tr("wpmShort")}` : "&nbsp;"}</small></button>`;
-      }).join("")}</div>
+      <div class="grid">${gridHtml()}</div>
     </main>`, (r) => {
     wireToolbar(r, levelMap);
     on(r, "#back", home);
@@ -289,11 +329,22 @@ function levelMap() {
     on(r, "#box", () => suggest(levelMap));
     on(r, "#hands", () => guide(levelMap));
     on(r, "#shop", shop);
-    on(r, "#gift", () => { const n = store.claimGift(); sfx.fanfare(); world.win(); levelMap(); toast(`${ic("gift")} ${tr("giftGot")} <b>+${n}</b> ${ic("coin")}`); });
+    on(r, "#gift", () => { const n = store.claimGift(); sfx.fanfare(); world.win(); again(levelMap); toast(`${ic("gift")} ${tr("giftGot")} <b>+${n}</b> ${ic("coin")}`); });
     on(r, "#m-daily", () => modeInfo("daily"));
     on(r, "#m-time", () => modeInfo("time"));
-    r.querySelectorAll<HTMLElement>(".tab").forEach((b) => b.addEventListener("click", () => { sfx.click(); tab = b.dataset.d as Diff; levelMap(); }));
-    r.querySelectorAll<HTMLElement>(".lvl.open").forEach((b) => b.addEventListener("click", () => { sfx.click(); info(LEVELS.find((l) => l.id === +b.dataset.id!)!); }));
+    // Pestañas de dificultad: solo cambia la lista de niveles, no toda la pantalla.
+    r.querySelector(".tabs")!.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>(".tab");
+      if (!b || b.dataset.d === tab) return;
+      sfx.click(); tab = b.dataset.d as Diff;
+      r.querySelectorAll<HTMLElement>(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === b)));
+      const grid = r.querySelector<HTMLElement>(".grid")!;
+      grid.innerHTML = gridHtml(); swap(grid);
+    });
+    r.querySelector(".grid")!.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>(".lvl.open");
+      if (b) { sfx.click(); info(LEVELS.find((l) => l.id === +b.dataset.id!)!); }
+    });
   });
 }
 
@@ -779,10 +830,10 @@ function ranking(board: "daily" | "time", scope: "world" | "room") {
       e.preventDefault();
       const code = (r.querySelector("#room") as HTMLInputElement).value.toUpperCase().replace(/[^A-Z0-9]/g, "");
       store.setOnline({ room: code.length >= 3 ? code : "" });
-      ranking(board, code.length >= 3 ? "room" : "world");
+      again(() => ranking(board, code.length >= 3 ? "room" : "world"));
     });
-    r.querySelectorAll<HTMLElement>("[data-b]").forEach((b) => b.addEventListener("click", () => ranking(b.dataset.b as typeof board, scope)));
-    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => ranking(board, b.dataset.s as typeof scope)));
+    r.querySelectorAll<HTMLElement>("[data-b]").forEach((b) => b.addEventListener("click", () => again(() => ranking(b.dataset.b as typeof board, scope))));
+    r.querySelectorAll<HTMLElement>("[data-s]").forEach((b) => b.addEventListener("click", () => again(() => ranking(board, b.dataset.s as typeof scope))));
     const note = r.querySelector<HTMLElement>("#note")!;
     r.querySelector("#forget")!.addEventListener("click", async () => {
       try { await forget(); store.setOnline({ on: false }); note.textContent = tr("forgotten"); (r.querySelector("#on") as HTMLInputElement).checked = false; }
