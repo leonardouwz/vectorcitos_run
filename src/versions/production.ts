@@ -11,4 +11,7 @@ export const PRODUCTION: Entry[] = [
   { version: "0.7.0", date: "2026-11-25", es: "Música por dificultad, reto diario animado con avisos en el celular y guía con teclado de colores.", en: "Music per difficulty, an animated daily challenge with phone reminders and a colored-keyboard guide." },
   { version: "0.7.1", date: "2026-11-25", es: "Arreglo: los resultados no se veían; música de inicio fuera de los niveles.", en: "Fix: results were invisible; menu music outside of levels." },
   { version: "0.8.0", date: "2026-11-27", es: "Combos por palabras limpias, monedas más fáciles, 15 cosméticos nuevos, estelas con partículas propias y modo desarrollador.", en: "Combos for clean words, easier coins, 15 new cosmetics, unique trail particles and a developer mode." },
+  { version: "0.8.1", date: "2026-11-28", es: "Error más llamativo: viñeta roja, sacudida, onda, estrellas de mareo y glitch.", en: "A more dramatic mistake: red vignette, shake, shockwave, dizzy stars and glitch." },
+  { version: "0.8.2", date: "2026-11-28", es: "El cartel de combo perdido sale con cualquier racha rota.", en: "The lost-combo sign shows for any broken streak." },
+  { version: "0.8.3", date: "2026-11-28", es: "Número de versión en la pantalla de inicio, separado por entorno.", en: "Version number on the home screen, separate per environment." },
 ];
