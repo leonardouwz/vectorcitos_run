@@ -316,3 +316,14 @@ button, .mode, .card, .lvl, .tab { touch-action: manipulation; -webkit-tap-highl
 .detail { animation: swapin .2s ease-out; }
 .shopbox, .grid, .cards, .modes { contain: layout style; }
 @media (prefers-reduced-motion: reduce) { .swap > *, .detail { animation: none; } .btn:active, .mode:active, .card:active, .lvl.open:active, .tab:active { transform: none; } }
+
+/* Reparto de botones: tienda y pestañas en pantallas pequeñas */
+.shopbox .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.shopbox .tabs::-webkit-scrollbar { display: none; }
+.shopbox .tab { flex: 0 0 auto; }
+html[data-kind="phone"] .shopbox { max-height: 56vh; padding: .6rem .7rem; gap: .6rem; }
+html[data-kind="phone"] .detail { padding: .5rem .6rem; gap: .5rem; }
+html[data-kind="phone"] .detail .art .ic { width: 2.4rem; height: 2.4rem; }
+html[data-kind="phone"] .detail small { font-size: .8rem; }
+html[data-kind="tablet"] .shopbox { max-height: 46vh; }
+html[data-kind="tablet"] .cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
